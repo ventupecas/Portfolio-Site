@@ -1279,7 +1279,59 @@
         if (!architecture) architecture = await (await realFetch(new URL('architecture.json', here))).json();
         return architecture;
     }
-    function health() {
+    // ⚠️ Risk monitor (risks.mjs on the server). The risks' descriptions and the example's
+    // timing come from risks.json, made at build time. The demo has nothing to measure, so
+    // the real risks show fixed demo readings, labelled as such; the example climbs in the
+    // browser just as it does on the server, and a reload ends it.
+    let riskInfo = null;
+    async function riskList() {
+        if (!riskInfo) riskInfo = await (await realFetch(new URL('risks.json', here))).json();
+        return riskInfo;
+    }
+    const DEMO_READINGS = {
+        disk: { value: 38, text: 'Demo reading: 38% full.' },
+        connections: { value: 14, text: 'Demo reading: 14 of 100 connections in use.' },
+        'claude-spend': { off: 'The demo answers with a scripted stand-in, so nothing is spent.' },
+        'email-limit': { off: 'Email is off in the demo, so nothing is sent.' },
+        memory: { value: 31, text: 'Demo reading: 31% of its memory limit in use.' },
+        lockouts: { value: 0, text: 'Demo reading: no accounts locked right now.' },
+    };
+    let exampleRun = null; // { startedAt, by }
+    const riskState = (risk, value) => (value >= risk.failAt ? 'happened' : value >= risk.warnAt ? 'close' : 'watching');
+    function exampleNow({ example: EX, exampleFrom: FROM, exampleClimbMs: CLIMB, exampleLastsMs: LASTS }) {
+        const now = Date.now();
+        if (exampleRun && now - exampleRun.startedAt > LASTS) exampleRun = null;
+        const shown = { ...EX, running: Boolean(exampleRun), checkedAt: new Date(now).toISOString() };
+        if (!exampleRun) return { ...shown, state: 'idle', value: null, text: 'Not running.', since: null };
+        const share = Math.min(1, (now - exampleRun.startedAt) / CLIMB);
+        const value = Math.round(FROM + (100 - FROM) * share);
+        const state = riskState(EX, value);
+        const cameTrue = exampleRun.startedAt + ((EX.failAt - FROM) / (100 - FROM)) * CLIMB;
+        return {
+            ...shown, state, value,
+            text: state === 'happened' ? `Made-up reading: Cube is at ${value}% of its memory and has stopped answering.` : `Made-up reading: Cube is at ${value}% of its memory.`,
+            since: state === 'happened' ? new Date(cameTrue).toISOString() : null,
+            startedBy: exampleRun.by, startedAt: new Date(exampleRun.startedAt).toISOString(),
+            endsAt: new Date(exampleRun.startedAt + LASTS).toISOString(),
+        };
+    }
+    async function risksNow() {
+        const info = await riskList();
+        const at = new Date().toISOString();
+        const real = info.risks.map(risk => {
+            const r = DEMO_READINGS[risk.id] || { off: 'The demo has nothing to measure this with.' };
+            const reading = r.off ? { state: 'off', value: null, text: r.off } : { state: riskState(risk, r.value), value: r.value, text: r.text };
+            return { ...risk, ...reading, checkedAt: at, since: null };
+        });
+        return [...real, exampleNow(info)];
+    }
+    // The risks that came true are reported as problems too, like the server's asProblems
+    const riskProblems = risks => risks.filter(r => r.state === 'happened').map(r => ({
+        id: `risk-${r.id}`, node: r.node, name: r.name, state: 'problem', risk: r.id, example: Boolean(r.example),
+        text: r.text, effect: r.effect, checkedAt: r.checkedAt, since: r.since,
+    }));
+
+    async function health() {
         const checks = [
             ['accounts', 'onetouch_auth', 'Sign-in and teams', 'Demo: answered in the browser.'],
             ['tickets', 'cube', 'Ticket data (Cube and analytics_db)', `Demo: ${byNumber.size.toLocaleString()} generated tickets.`],
@@ -1291,9 +1343,14 @@
             ['errors', 'express', 'Errors people are getting', 'No errors.'],
         ];
         const at = new Date().toISOString();
+        const risks = await risksNow();
         return {
             checkedAt: at,
-            checks: checks.map(([id, node, name, r]) => ({ id, node, name, ...(typeof r === 'string' ? { state: 'ok', text: r } : { state: 'off', text: r.off }), checkedAt: at, since: null })),
+            checks: [
+                ...checks.map(([id, node, name, r]) => ({ id, node, name, ...(typeof r === 'string' ? { state: 'ok', text: r } : { state: 'off', text: r.off }), checkedAt: at, since: null })),
+                ...riskProblems(risks),
+            ],
+            risks,
         };
     }
 
@@ -1511,7 +1568,12 @@
 
         // Architecture (shown to the demo account) and problem reports
         if (path === '/api/architecture') return json(await architectureMap());
-        if (path === '/api/architecture/health') return json(health());
+        if (path === '/api/architecture/health') return json(await health());
+        if (path === '/api/architecture/risks/example' && method === 'POST') {
+            if (typeof body?.run !== 'boolean') return fail('Say whether to run the example: { run: true } or { run: false }.');
+            exampleRun = body.run ? { startedAt: Date.now(), by: ME.displayName } : null;
+            return json(exampleNow(await riskList()));
+        }
         if (path === '/api/architecture/push') return json({ state: 'needs-auth', listening: false, heard: 0, lastAt: null, last: null, since: new Date(NOW).toISOString() });
         if (path === '/api/architecture/issues') return json({ openCount: 0, open: [], resolved: [] });
         if (path === '/api/issues') return json({ id: 1, told: 0 });

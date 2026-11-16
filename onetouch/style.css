@@ -467,6 +467,9 @@ html.a11y-contrast body::before { display: none; }
 
 /* HOME PAGE: the welcome sits in the page's top-left corner */
 #home-view { overflow-y: auto; }
+/* Home's and the Team tab's columns sit in the middle of wide windows (1400px at most) */
+#home-view > .home,
+#teams-view > .home { margin-inline: auto; }
 
 /* TEAM TAB (teams.js): teams, their people, and who has which ticket */
 #teams-view { overflow-y: auto; }
@@ -1567,7 +1570,8 @@ tr.expanded .expand-caret { transform: rotate(90deg); color: var(--accent); }
 .dashboard-drawer.editing .is-hidden .dashboard-choice-desc { opacity: 0.5; }
 
 /* ONE OF YOUR OWN DASHBOARDS: its buttons, then its charts */
-.board-view { flex: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 16px 20px 32px; }
+/* Its content centered in a 1400px column, like Home (the scroll bar stays at the window's edge) */
+.board-view { flex: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 16px max(20px, calc((100% - 1400px) / 2)) 32px; }
 .board-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .tile-grid {
     display: grid;
@@ -2119,7 +2123,7 @@ span.family-chip { color: var(--text-2); background: var(--surface-3); }
    window a ticket opens in
    ===================================================================== */
 
-.families-view { flex: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 16px 20px 32px; }
+.families-view { flex: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 16px max(20px, calc((100% - 1400px) / 2)) 32px; }
 /* One tab per kind of family, with how many there are */
 .families-kinds { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .family-kind {
@@ -3298,4 +3302,65 @@ html.a11y-motion *::after {
 }
 @media (prefers-reduced-motion: reduce) {
     .arch-band, .arch-band-label, .arch-card, .arch-line, .arch-line-label { transition: none; }
+}
+
+/* 🧊 Before the map is opened (from 🩺 Health): the banner and the tabs on their
+   own, in a centered column, and the page scrolls */
+.arch.arch-map-closed {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    overflow-y: auto;
+    background: var(--bg-primary);
+}
+.arch-map-closed .arch-rail, .arch-map-closed .arch-stage, .arch-map-closed .arch-plan,
+.arch-map-closed .arch-list, .arch-map-closed .arch-step { display: none !important; }
+.arch-map-closed .arch-status, .arch-map-closed .arch-side {
+    position: static !important;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 900px;
+    max-height: none;
+    margin: 0 auto !important;
+    box-shadow: none;
+}
+.arch-map-closed .arch-side { overflow: visible; }
+.arch-map-closed .arch-side-body { overflow: visible; padding: 16px 20px 20px; font-size: 0.9rem; }
+.arch-map-closed .arch-tab { font-size: 0.82rem; }
+.arch-open-map { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 8px 0 12px; }
+.arch-open-map p { flex: 1 1 260px; margin: 0 !important; }
+.arch-close-map { margin-top: auto; }
+
+/* ⚠️ Risk monitor */
+.arch-risks { margin: 0 0 12px; padding: 0; list-style: none; }
+.arch-risk { margin-bottom: 10px; padding: 10px 12px; background: var(--surface-2); border: 1px solid var(--border); border-left: 4px solid var(--same-ink); border-radius: 8px; }
+.arch-risk-close { border-left-color: var(--warn); }
+.arch-risk-happened { background: var(--danger-soft); border-color: var(--danger-line); border-left-color: var(--danger); }
+.arch-risk-unknown, .arch-risk-off, .arch-risk-idle { border-left-color: var(--muted); }
+.arch-risk-example { border-style: dashed; border-left-style: solid; }
+.arch-risk-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; margin-bottom: 4px; }
+.arch-risk-name { font-size: 0.95rem; }
+.arch-risk p { margin-bottom: 6px; }
+.arch-risk .arch-facts { margin-top: 8px; }
+.arch-risk-reading { font-weight: 600; }
+.arch-meter { position: relative; height: 10px; margin: 6px 0; background: var(--surface-3); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+.arch-meter-fill { position: absolute; inset: 0 auto 0 0; background: var(--same-ink); border-radius: 999px; transition: width 0.6s ease; }
+.arch-meter-close .arch-meter-fill { background: var(--warn); }
+.arch-meter-happened .arch-meter-fill { background: var(--danger); }
+.arch-meter-mark { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--warn-ink); }
+.arch-meter-mark-fail { background: var(--danger); }
+
+/* A block with a problem: the name in 3D says what's wrong, and the 2D card throbs */
+.arch-tag-problem { display: block; max-width: 230px; white-space: normal; font-weight: 700; color: var(--danger); }
+@keyframes arch-bad-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 var(--danger-line); }
+    50% { box-shadow: 0 0 0 7px var(--danger-line); }
+}
+.arch-card.arch-card-bad { animation: arch-bad-pulse 1.6s ease-in-out infinite; }
+.a11y-motion .arch-card.arch-card-bad { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+    .arch-card.arch-card-bad { animation: none; }
+    .arch-meter-fill { transition: none; }
 }

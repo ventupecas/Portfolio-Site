@@ -21,12 +21,15 @@
 
     const THREE_URL = './vendor/three-0.186.1/three.module.js';
     const POLL_MS = 20 * 1000;
+    const FAST_POLL_MS = 500; // while the example risk's reading climbs
     const DIM = 0.14; // how faint what isn't in focus gets
 
     let map = null;        // what the server said; null until loaded and after sign-out
     let world = null;      // the 3D scene; null when this browser can't draw it
     let planView = null;   // the flat view
     let active = false;
+    let mapOpen = false;   // the 2D/3D map: shut until someone opens 🩺 Health
+    let fastTimer = null;  // the quicker health poll while the example risk climbs
     let loading = null;    // the first opening, while it's still under way
     let opening = 0;       // goes up at sign-out, so a late answer can't draw the map for the next person
     let mode = '2d';       // '2d', '3d' or 'list'
@@ -57,8 +60,11 @@
         || matchMedia('(prefers-reduced-motion: reduce)').matches;
     const receiving = () => map?.push.state === 'receiving';
     const colorVar = name => `var(--${/^(series-[1-8]|warn)$/.test(name) ? name : 'muted'})`;
-    // Whichever drawing is showing: both answer to the same calls. The list has none.
-    const scene = () => (mode === '3d' ? world : mode === '2d' ? planView : null);
+    // Whichever drawing is showing: both answer to the same calls. The list has
+    // none, and nothing shows until the map is opened from 🩺 Health.
+    const scene = () => (!mapOpen ? null : mode === '3d' ? world : mode === '2d' ? planView : null);
+    // The example risk's reading is still climbing: worth asking twice a second
+    const exampleClimbing = () => Boolean(health?.risks?.some(r => r.example && r.running && r.value < 100));
 
     // -----------------------------------------------------------------
     // The page's text (everything but the scene)
@@ -108,6 +114,12 @@
                 <span class="arch-status-text">${shown.map(p => `<b>${esc(p.name)}:</b> ${esc(p.text)}`).join('<br>')}${list.length > shown.length ? `<br>and ${list.length - shown.length} more` : ''}</span>
                 <button type="button" class="arch-btn" data-side="health">See what's wrong</button>
             </div>`;
+        const close = closeRisks();
+        const near = !close.length ? '' : `<div class="arch-status-row arch-status-problems">
+                <span class="arch-chip arch-chip-warn">${close.length} risk${close.length === 1 ? '' : 's'} getting close</span>
+                <span class="arch-status-text">${close.map(r => `<b>${esc(r.name)}:</b> ${esc(r.text)}`).join('<br>')}</span>
+                <button type="button" class="arch-btn" data-side="risks">See the risks</button>
+            </div>`;
         const open = issues?.openCount || 0;
         const latest = issues?.open[0];
         const reported = !open ? '' : `<div class="arch-status-row arch-status-problems">
@@ -116,8 +128,11 @@
                 <button type="button" class="arch-btn" data-side="reports">See the reports</button>
             </div>`;
         const push = pushBarHidden() ? '' : `<div class="arch-status-row arch-status-push">${pushStatusHtml()}</div>`;
-        return `${bad}${reported}${push}`;
+        return `${bad}${near}${reported}${push}`;
     }
+
+    // Risks past their warning that haven't come true (those are problems already)
+    const closeRisks = () => (health?.risks || []).filter(r => r.state === 'close');
 
     // Only the "needs authentication" notice can be closed. Real problems and
     // reports always show, and so does the news when records start arriving.
@@ -188,13 +203,91 @@
             ${summary}
             <ul class="arch-checks">${server}${checks.map(c => `
                 <li class="arch-check arch-check-${esc(c.state)}">
-                    <b>${c.node ? `<button type="button" class="arch-link" data-node="${esc(c.node)}">${esc(c.name)}</button>` : esc(c.name)}</b><br>
+                    ${!c.risk ? '' : c.example ? '<span class="arch-chip arch-chip-warn">Example risk, made up</span><br>' : '<span class="arch-chip arch-chip-stop">A risk that came true</span><br>'}
+                    <b>${c.node && mapOpen ? `<button type="button" class="arch-link" data-node="${esc(c.node)}">${esc(c.name)}</button>` : esc(c.name)}</b><br>
                     ${esc(c.text)}
                     ${c.effect ? `<br><b>What this means:</b> ${esc(c.effect)}` : ''}
                     ${c.state === 'problem' && c.detail && c.detail !== c.text ? `<br><span class="arch-small">${esc(c.detail)}</span>` : ''}
                     <br><span class="arch-small">${c.since ? `Since ${esc(when(c.since))}. ` : ''}Checked ${esc(when(c.checkedAt))}.</span>
+                    ${c.risk ? `<br><button type="button" class="arch-link" data-side="risks">See it in the Risk monitor</button>` : ''}
                 </li>`).join('')}</ul>
-            <p class="arch-small">Each check really tries the thing, while this page is open, every 30 seconds or so. Outside services are asked less often. ServiceNow's authentication is listed in the banner, and in its own tab.</p>`;
+            <p class="arch-small">Each check really tries the thing, while this page is open, every 30 seconds or so. Outside services are asked less often. A risk from the ⚠️ Risk monitor that comes true is listed here too, and its block turns red on the map. ServiceNow's authentication is listed in the banner, and in its own tab.</p>`;
+    }
+
+    // ---- ⚠️ Risk monitor: what could go wrong, and how near each one is ----
+
+    const RISK_RANK = { happened: 0, close: 1, unknown: 2, watching: 3, off: 4, idle: 5 };
+    const RISK_CHIP = {
+        happened: '<span class="arch-chip arch-chip-stop">Came true</span>',
+        close: '<span class="arch-chip arch-chip-warn">Getting close</span>',
+        watching: '<span class="arch-chip arch-chip-good">Fine</span>',
+        unknown: '<span class="arch-chip">Can\'t measure</span>',
+        off: '<span class="arch-chip">Off here</span>',
+        idle: '<span class="arch-chip">Not running</span>',
+    };
+    const amount = (r, value) => (r.unit === '%' ? `${value}%` : `${value} ${r.unit}`);
+
+    // A bar with the reading, and marks where it gets close and where it comes true
+    function meterHtml(r) {
+        if (typeof r.value !== 'number') return '';
+        const at = value => Math.max(0, Math.min(100, (value / r.max) * 100)).toFixed(1);
+        return `<div class="arch-meter arch-meter-${esc(r.state)}" role="meter" aria-label="${esc(r.name)}"
+                    aria-valuemin="0" aria-valuemax="${esc(r.max)}" aria-valuenow="${esc(Math.min(r.value, r.max))}" aria-valuetext="${esc(amount(r, r.value))}">
+                <span class="arch-meter-fill" style="width: ${at(r.value)}%"></span>
+                <span class="arch-meter-mark" style="left: ${at(r.warnAt)}%" title="Getting close at ${esc(amount(r, r.warnAt))}"></span>
+                <span class="arch-meter-mark arch-meter-mark-fail" style="left: ${at(r.failAt)}%" title="Comes true at ${esc(amount(r, r.failAt))}"></span>
+            </div>`;
+    }
+
+    function exampleControlsHtml(r) {
+        if (!r.running) {
+            return `<button type="button" class="arch-btn arch-btn-wide" data-example="run">▶ Run the example</button>
+                <p class="arch-small">Every admin on this page sees it while it runs, marked as an example. Nothing really changes.</p>`;
+        }
+        return `<p class="arch-small">Started by ${esc(r.startedBy)} at ${esc(when(r.startedAt))}. It ends by itself at ${esc(when(r.endsAt))}.</p>
+            <button type="button" class="arch-btn arch-btn-wide" data-example="stop">■ Stop the example</button>`;
+    }
+
+    function riskHtml(r) {
+        const node = nodeById(r.node);
+        const where = !node ? '' : mapOpen
+            ? `<button type="button" class="arch-link" data-node="${esc(node.id)}">${esc(node.name)}</button>`
+            : `<b>${esc(node.name)}</b>`;
+        const cameTrue = r.state !== 'happened' ? '' : `<p class="arch-notice arch-notice-bad">
+                ${r.since ? `Came true ${esc(when(r.since))}. ` : ''}It's on the 🩺 Health tab${mapOpen ? ', and its block is red on the map' : ''}.
+                <button type="button" class="arch-link" data-side="health">${mapOpen ? 'See it in Health' : 'See it in Health and on the map'}</button></p>`;
+        return `<li class="arch-risk arch-risk-${esc(r.state)}${r.example ? ' arch-risk-example' : ''}">
+                <div class="arch-risk-head"><b class="arch-risk-name">${esc(r.name)}</b>${RISK_CHIP[r.state] || ''}</div>
+                ${where ? `<p class="arch-small">On the map: ${where}</p>` : ''}
+                <p>${esc(r.risk)}</p>
+                ${meterHtml(r)}
+                <p class="arch-risk-reading">${esc(r.text)}${r.state === 'unknown' && r.detail ? ` <span class="arch-small">(${esc(r.detail)})</span>` : ''}</p>
+                ${typeof r.value === 'number' || r.example ? `<p class="arch-small">Getting close at ${esc(amount(r, r.warnAt))}. Comes true at ${esc(amount(r, r.failAt))}.</p>` : ''}
+                ${cameTrue}
+                <dl class="arch-facts">
+                    <dt>We watch</dt><dd>${esc(r.watch)}</dd>
+                    <dt>If it comes true</dt><dd>${esc(r.effect)}</dd>
+                    <dt>What to do</dt><dd>${esc(r.action)}</dd>
+                </dl>
+                ${r.example ? exampleControlsHtml(r) : `<span class="arch-small">Measured ${esc(when(r.checkedAt))}.</span>`}
+            </li>`;
+    }
+
+    function risksHtml(Heading = 'h3') {
+        const title = `<${Heading} class="arch-node-name">Risks we watch</${Heading}>`;
+        if (!health?.risks) return `${title}<p>${healthError ? esc(healthError) : 'Measuring…'}</p>`;
+        const real = health.risks.filter(r => !r.example).sort((a, b) => RISK_RANK[a.state] - RISK_RANK[b.state]);
+        const examples = health.risks.filter(r => r.example);
+        const came = real.filter(r => r.state === 'happened').length;
+        const close = real.filter(r => r.state === 'close').length;
+        const summary = came ? `<p class="arch-notice arch-notice-bad"><b>${came} risk${came === 1 ? '' : 's'} came true.</b> ${came === 1 ? 'It\'s' : 'They\'re'} on the 🩺 Health tab too.</p>`
+            : close ? `<p class="arch-notice"><b>${close} risk${close === 1 ? ' is' : 's are'} getting close.</b></p>`
+            : '<p class="arch-notice arch-notice-good"><b>None of the risks has come true.</b></p>';
+        return `${title}
+            ${summary}
+            <p>Things that haven't gone wrong, but could. Each one is measured while this page is open. When one passes its limit it comes true: it moves to 🩺 Health, and its block turns red on the 2D and 3D map.</p>
+            <ul class="arch-risks">${real.map(riskHtml).join('')}</ul>
+            ${examples.length ? `<h4>For demos</h4><ul class="arch-risks">${examples.map(riskHtml).join('')}</ul>` : ''}`;
     }
 
     function pushStatusHtml() {
@@ -211,7 +304,7 @@
             <span class="arch-status-text"><b>${esc(s.headline)}</b> No data can arrive until then.</span>
             <span class="arch-status-actions">
                 <button type="button" class="arch-btn" data-side="servicenow">What it needs</button>
-                <button type="button" class="arch-btn" data-flow="servicenow">▶ See how it will work</button>
+                ${mapOpen ? '<button type="button" class="arch-btn" data-flow="servicenow">▶ See how it will work</button>' : ''}
             </span>`;
     }
 
@@ -236,7 +329,8 @@
             <h3 class="arch-rail-head">What happens when…</h3>
             <div class="arch-rail-group">${flows}</div>
             <h3 class="arch-rail-head">Layers</h3>
-            <div class="arch-rail-group">${layers}</div>`;
+            <div class="arch-rail-group">${layers}</div>
+            <button type="button" class="arch-btn arch-btn-wide arch-close-map" data-do="close-map">✕ Close the map</button>`;
     }
 
     // The part of the page no panel is floating over, for a view w by h
@@ -321,15 +415,22 @@
             <ul class="arch-built">${s.built.map(b => `<li>${esc(b)}</li>`).join('')}</ul>
             <h4>The steps for ServiceNow</h4>
             <p><code>${esc(s.blueprint)}</code></p>
-            <button type="button" class="arch-btn arch-btn-wide" data-flow="servicenow">▶ See how it ${receiving() ? 'works' : 'will work'}</button>`;
+            ${mapOpen ? `<button type="button" class="arch-btn arch-btn-wide" data-flow="servicenow">▶ See how it ${receiving() ? 'works' : 'will work'}</button>` : ''}`;
     }
 
     function overviewHtml() {
+        const opener = mapOpen ? '' : `<div class="arch-notice arch-open-map">
+                <p><b>The map opens from 🩺 Health:</b> every block and line of OneTouch in 2D or 3D, with anything that isn't working in red.</p>
+                <button type="button" class="arch-btn" data-side="health">🩺 Open Health and the map</button>
+            </div>`;
         return `
             <h3 class="arch-node-name">How OneTouch fits together</h3>
+            ${opener}
             <p>${esc(map.overview)}</p>
             <h4>Find your way around</h4>
             <ul class="arch-built">
+                <li><b>🩺 Health</b> opens the map beside what's working and what isn't.</li>
+                <li><b>⚠️ Risk monitor</b> lists what could go wrong, measured. A risk that comes true moves to Health, and its block turns red on the map.</li>
                 <li><b>2D</b>, <b>3D</b> and <b>List</b> are the same map. 2D writes on every block and line what it's doing.</li>
                 <li>Click any block for what it does, how it's protected and where its code is.</li>
                 <li>Pick a <b>What happens when…</b> to follow a real request through the system, step by step.</li>
@@ -344,11 +445,19 @@
         const node = selected && nodeById(selected);
         const count = problems().length;
         const reported = issues?.openCount || 0;
-        const tabs = [['details', '🧩 Details'], ['stack', '📚 Stack'], ['health', `🩺 Health${count ? ` (${count})` : ''}`],
-            ['reports', `📣 Reports${reported ? ` (${reported})` : ''}`], ['servicenow', '🔌 ServiceNow']];
-        // A redraw of the same tab stays where the person had scrolled to
+        const risky = (health?.risks || []).filter(r => r.state === 'happened' || r.state === 'close').length;
+        const tabs = [['details', node ? '🧩 Details' : '🧩 Overview'], ['health', `🩺 Health${count ? ` (${count})` : ''}`],
+            ['risks', `⚠️ Risk monitor${risky ? ` (${risky})` : ''}`], ['reports', `📣 Reports${reported ? ` (${reported})` : ''}`],
+            ['stack', '📚 Stack'], ['servicenow', '🔌 ServiceNow']];
+        // A redraw of the same tab stays where the person had scrolled to, and
+        // keeps the keys on the same button (the example risk redraws twice a second)
         const scrolled = sideShown === sideTab ? side.querySelector('.arch-side-body')?.scrollTop || 0 : 0;
+        const focused = side.contains(document.activeElement) ? document.activeElement : null;
+        const refocus = !focused ? null
+            : focused.classList.contains('arch-side-body') ? '.arch-side-body'
+            : Object.entries(focused.dataset).map(([k, v]) => `[data-${k.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`)}="${CSS.escape(v)}"]`).join('') || null;
         const body = sideTab === 'health' ? healthHtml()
+            : sideTab === 'risks' ? risksHtml()
             : sideTab === 'reports' ? reportsHtml()
             : sideTab === 'stack' ? stackHtml()
             : sideTab === 'servicenow' ? servicenowHtml()
@@ -359,6 +468,7 @@
             </div>
             <div class="arch-side-body" role="tabpanel" tabindex="0">${body}</div>`;
         side.querySelector('.arch-side-body').scrollTop = scrolled;
+        if (refocus && sideShown === sideTab) side.querySelector(refocus)?.focus({ preventScroll: true });
         sideShown = sideTab;
     }
 
@@ -408,6 +518,7 @@
         list.innerHTML = `
             <section class="arch-list-layer"><h2>Architecture</h2><p>${esc(map.overview)}</p></section>
             <section class="arch-list-layer arch-item" id="arch-list-health" tabindex="-1">${healthHtml('h3')}</section>
+            <section class="arch-list-layer arch-item" id="arch-list-risks" tabindex="-1">${risksHtml('h3')}</section>
             <section class="arch-list-layer arch-item" id="arch-list-reports" tabindex="-1">${reportsHtml('h3')}</section>
             <section class="arch-list-layer arch-item" id="arch-list-servicenow" tabindex="-1">${servicenowHtml('h3')}</section>
             <section class="arch-list-layer"><h3>Tech stack</h3>${stackHtml()}</section>
@@ -547,12 +658,18 @@
     // Every button on the page, in one place
     function onClick(event) {
         // A name over a block, or anything else that's a button on this page
-        const el = event.target.closest('[data-issue], [data-node], [data-flow], [data-layer], [data-side], [data-do]');
+        const el = event.target.closest('[data-issue], [data-example], [data-node], [data-flow], [data-layer], [data-side], [data-do]');
         if (!el || !$('architecture').contains(el)) return;
         // First, so the camera frames what comes next around the bar being back
         if (pushBarOff && isPushButton(el)) setPushBar(false);
         if (el.dataset.issue) {
             setIssue(el, el.dataset.issue, el.dataset.issueStatus);
+        } else if (el.dataset.example) {
+            runExample(el, el.dataset.example === 'run');
+        } else if (el.dataset.side === 'health' && !mapOpen) {
+            // The map is only shown once someone opens Health
+            sideTab = 'health';
+            openMapView();
         } else if (el.dataset.node) {
             if (player.flow) stopFlow();
             select(el.dataset.node);
@@ -566,6 +683,7 @@
             if (mode === 'list' && sideTab === 'servicenow') goToInList('arch-list-servicenow');
             if (mode === 'list' && sideTab === 'health') goToInList('arch-list-health');
             if (mode === 'list' && sideTab === 'reports') goToInList('arch-list-reports');
+            if (mode === 'list' && sideTab === 'risks') goToInList('arch-list-risks');
         } else {
             act(el.dataset.do);
         }
@@ -573,6 +691,7 @@
 
     function act(what) {
         if (what === 'rail') setRailMin(!railMin);
+        else if (what === 'close-map') closeMapView();
         else if (what === 'hide-push-bar') hidePushBar();
         else if (what === '3d' || what === '2d' || what === 'list') pickMode(what);
         else if (what === 'labels') planView?.toggleLabels();
@@ -619,7 +738,7 @@
         const status = $('arch-status');
         if (!status || !map) return;
         const list = problems();
-        const key = `${map.push.state}:${map.push.heard}:${list.map(p => `${p.id}=${p.text}`).join('|')}:${issues?.openCount || 0}:${issues?.open[0]?.id || 0}:${pushBarHidden()}`;
+        const key = `${map.push.state}:${map.push.heard}:${list.map(p => `${p.id}=${p.text}`).join('|')}:${closeRisks().map(r => `${r.id}=${r.text}`).join('|')}:${issues?.openCount || 0}:${issues?.open[0]?.id || 0}:${pushBarHidden()}:${mapOpen}`;
         if (status.dataset.key !== key) {
             status.dataset.key = key;
             status.innerHTML = statusHtml();
@@ -629,12 +748,18 @@
             status.classList.toggle('arch-status-bad', list.length > 0);
             // The banner's height may have changed, and the scene is centered below it
             scene()?.resize();
-            world?.setProblems(list.map(p => p.node).filter(Boolean));
-            planView?.setProblems(list.filter(p => p.node));
+            paintProblems();
         }
         world?.setPushState(receiving());
         planView?.setPushState(receiving());
         if (before !== undefined && map.push.heard > before) scene()?.pulse(map.servicenow.arrives);
+    }
+
+    // Blocks with a problem (a failed check, or a risk that came true) turn red in 2D and 3D
+    function paintProblems() {
+        const list = problems().filter(p => p.node);
+        world?.setProblems(list);
+        planView?.setProblems(list);
     }
 
     async function fetchMap() {
@@ -648,9 +773,11 @@
     // The health report. Not getting one is itself a problem to report: a server
     // that can't reach its database, or isn't answering, can't say so any other way.
     async function pollHealth() {
+        clearTimeout(fastTimer);
         if (!active || !map) return;
         const session = opening;
-        const before = JSON.stringify(health?.checks.map(c => [c.id, c.state, c.text])) + healthError;
+        const seen = () => JSON.stringify([health?.checks.map(c => [c.id, c.state, c.text]), health?.risks?.map(r => [r.id, r.state, r.text, r.running])]) + healthError;
+        const before = seen();
         try {
             const response = await fetch(`${API_BASE}/api/architecture/health`, { headers: authHeaders() });
             if (handleUnauthorized(response) || session !== opening) return;
@@ -666,12 +793,36 @@
             healthErrorSince ||= new Date().toISOString();
         }
         paintPush();
-        if (before !== JSON.stringify(health?.checks.map(c => [c.id, c.state, c.text])) + healthError) {
+        if (before !== seen()) {
             renderSide();
-            if (mode === 'list') renderList();
-        } else if (sideTab === 'health' && !$('arch-side')?.contains(document.activeElement)) {
+            if (mode === 'list' && mapOpen) renderList();
+        } else if ((sideTab === 'health' || sideTab === 'risks') && !$('arch-side')?.contains(document.activeElement)) {
             // Only the "Checked at" times moved: not worth taking the keys from someone
             renderSide();
+        }
+        // The example risk climbs in under 5 seconds: watch it closely until it's done
+        if (active && session === opening && exampleClimbing()) fastTimer = setTimeout(pollHealth, FAST_POLL_MS);
+    }
+
+    // ▶ Run or ■ Stop the example risk (for demos). Every admin sees it.
+    async function runExample(button, run) {
+        button.disabled = true;
+        try {
+            const response = await fetch(`${API_BASE}/api/architecture/risks/example`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                body: JSON.stringify({ run }),
+            });
+            if (handleUnauthorized(response)) return;
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || 'The example could not be changed right now.');
+            await pollHealth();
+            showToast(run ? 'The example is running. Its made-up reading climbs until it comes true; nothing is really wrong.' : 'The example has stopped.');
+            // Its button changed: the keys go to the new one
+            document.querySelector('#arch-side [data-example]')?.focus({ preventScroll: true });
+        } catch (error) {
+            button.disabled = false;
+            showToast(error.message, 'error');
         }
     }
 
@@ -773,28 +924,72 @@
         }
         root.innerHTML = pageHtml();
         root.onclick = onClick;
-        let THREE = null;
-        try {
-            THREE = await import(THREE_URL);
-        } catch (error) {
-            console.error('🧊 Could not load three.js:', error);
-        }
-        if (session !== opening) return;
-        if (THREE) {
-            try {
-                world = buildWorld(THREE);
-            } catch (error) {
-                console.error('🧊 Could not start the 3D map:', error);
-                world = null;
-            }
-        }
-        planView = buildPlanView();
+        // The tabs first, on their own: the map waits until someone opens 🩺 Health
+        mapOpen = false;
+        root.classList.add('arch-map-closed');
         renderSide();
         paintRail();
         paintPush();
-        setMode(savedMode());
         pollHealth();
         pollIssues();
+    }
+
+    // The 2D/3D map, beside the Health tab. Built the first time (three.js is
+    // only loaded then), and kept until sign-out.
+    async function openMapView() {
+        if (mapOpen || !map) return;
+        const session = opening;
+        const root = $('architecture');
+        mapOpen = true;
+        root.classList.remove('arch-map-closed');
+        renderSide();
+        paintRail();
+        if (!planView) {
+            let THREE = null;
+            try {
+                THREE = await import(THREE_URL);
+            } catch (error) {
+                console.error('🧊 Could not load three.js:', error);
+            }
+            if (session !== opening || !map) return;
+            if (THREE) {
+                try {
+                    world = buildWorld(THREE);
+                } catch (error) {
+                    console.error('🧊 Could not start the 3D map:', error);
+                    world = null;
+                }
+            }
+            planView = buildPlanView();
+            world?.setPushState(receiving());
+            planView.setPushState(receiving());
+        }
+        if (session !== opening || !mapOpen) return;
+        paintRail();
+        paintProblems();
+        $('arch-status').dataset.key = ''; // the banner's buttons change with the map
+        paintPush();
+        setMode(savedMode());
+        renderSide();
+        // The keys go to the panel that opened it
+        document.querySelector('#arch-side .arch-tab.is-on')?.focus({ preventScroll: true });
+    }
+
+    // Back to the tabs on their own
+    function closeMapView() {
+        if (!mapOpen) return;
+        stopFlow();
+        scene()?.sleep();
+        mapOpen = false;
+        selected = null;
+        focusLayer = null;
+        const root = $('architecture');
+        root.classList.remove('arch-is-list');
+        root.classList.add('arch-map-closed');
+        $('arch-status').dataset.key = '';
+        paintPush();
+        renderSide();
+        document.querySelector('#arch-side .arch-tab.is-on')?.focus({ preventScroll: true });
     }
 
     function hideArchitecture() {
@@ -802,6 +997,8 @@
         active = false;
         clearInterval(pollTimer);
         pollTimer = null;
+        clearTimeout(fastTimer);
+        fastTimer = null;
         player.playing = false;
         renderStep();
         scene()?.sleep();
@@ -821,6 +1018,7 @@
         healthErrorSince = null;
         issues = null;
         sideShown = null;
+        mapOpen = false;
         mode = '3d';
         sideTab = 'details';
         selected = null;
@@ -830,7 +1028,7 @@
         if (root) {
             root.innerHTML = '';
             root.onclick = null;
-            root.classList.remove('arch-is-list');
+            root.classList.remove('arch-is-list', 'arch-map-closed');
         }
     }
 
@@ -880,18 +1078,21 @@
             return target.setRGB(r / 255, g / 255, b / 255, THREE.SRGBColorSpace);
         }
         const paints = [];
+        const paintOf = new Map(); // a material's entry, so a block with a problem can turn red
         function paint(material, css, mix = null, share = 0) {
             const entry = { material, css, mix, share };
             paints.push(entry);
+            paintOf.set(material, entry);
             return entry;
         }
         const mixColor = new THREE.Color();
+        function recolor(p) {
+            cssColor(p.css, p.material.color);
+            if (p.mix) p.material.color.lerp(cssColor(p.mix, mixColor), p.share);
+            if (p.material.emissive) p.material.emissive.copy(p.material.color);
+        }
         function applyTheme() {
-            for (const p of paints) {
-                cssColor(p.css, p.material.color);
-                if (p.mix) p.material.color.lerp(cssColor(p.mix, mixColor), p.share);
-                if (p.material.emissive) p.material.emissive.copy(p.material.color);
-            }
+            for (const p of paints) recolor(p);
             for (const link of links) {
                 cssColor(link.base, link.baseColor);
                 cssColor('accent', link.hotColor);
@@ -1746,6 +1947,8 @@
                 // The gate keeps breathing while it's what everything waits for
                 if (node === gate && !receiving() && lively) glowTo += 0.14 + 0.14 * Math.sin(clock.t * 2.4);
                 if (node === gate && stepFocus?.stop && lively) glowTo += 0.3 * Math.abs(Math.sin(clock.t * 6));
+                // A block with a problem glows red, and throbs while someone is watching
+                if (node.bad) glowTo += lively ? 0.3 + 0.2 * Math.sin(clock.t * 3.2) : 0.3;
                 node.glow = ease(node.glow, glowTo, still ? 1000 : 9, dt || 0.016);
                 if (!close(wasDim, node.dim) || !close(wasGlow, node.glow)) {
                     dirty = true;
@@ -1884,14 +2087,36 @@
         applyCamera();
         showFocus(false);
 
-        // Blocks with a problem get a red name, which stays showing
-        function setProblems(ids) {
+        // A block with a problem turns red and glows, and its name, which stays
+        // showing, says what's wrong. The light parts (screens, rims) keep their color.
+        function setProblems(list) {
             for (const [id, node] of nodes) {
-                const bad = ids.includes(id);
-                node.tag.el.classList.toggle('arch-tag-bad', bad);
+                const own = list.filter(p => p.node === id);
+                const bad = own.length > 0;
+                if (Boolean(node.bad) !== bad) {
+                    node.bad = bad;
+                    for (const material of node.mats) {
+                        const entry = paintOf.get(material);
+                        if (!entry) continue;
+                        entry.okCss ??= entry.css;
+                        if (entry.okCss === 'panel-bg' || entry.okCss === 'muted') continue;
+                        entry.css = bad ? 'danger' : entry.okCss;
+                        recolor(entry);
+                    }
+                }
+                const el = node.tag.el;
+                el.classList.toggle('arch-tag-bad', bad);
+                el.querySelector('.arch-tag-problem')?.remove();
+                if (bad) {
+                    const note = document.createElement('span');
+                    note.className = 'arch-tag-problem';
+                    note.textContent = own.map(p => p.text).join(' ');
+                    el.append(note);
+                }
                 node.tag.baseRank ??= node.tag.rank;
                 node.tag.rank = bad ? 15 : node.tag.baseRank;
             }
+            measureTags();
             dirty = true;
         }
 
