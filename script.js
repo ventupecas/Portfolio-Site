@@ -25,10 +25,14 @@ const STRINGS = {
     'hero.cta2': 'Hablemos',
 
     'about.title': 'Sobre mí',
+    'about.p0': 'Nací y crecí en Madrid y, poco antes de cumplir diez años, me mudé a West Orange (Nueva Jersey) sin saber ni una palabra de inglés. Después llegaron Miami y ahora Milwaukee, y cada mudanza me enseñó a adaptarme rápido a un lugar completamente nuevo. La curiosidad me mueve: soy como una esponja y aprendo de todo lo que me rodea, sobre todo de las personas con las que trabajo.',
     'about.p1': 'Siempre he querido entender cómo funcionan las herramientas que uso y crear las mías cuando no existe la adecuada. Eso es lo que me llevó a la programación. Me gusta todo el proceso: decidir qué debe hacer una herramienta, diseñar cómo debe sentirse al usarla y construirla hasta que lo consiga.',
     'about.p2': 'Antes de dedicarme a la tecnología, trabajé en ventas. En Park Business Capital, en Miami, pasé de captar clientes en frío a cerrar ventas en mis tres primeros meses, con unas cifras que triplicaban la media del sector. También mejoré el guion de ventas de la empresa, enseñé nuevas tecnologías a la plantilla veterana y formé en ventas a las nuevas incorporaciones. Antes, en Domino’s, en Miami Beach, planificaba las rutas de reparto y coordinaba los tiempos del horno para que los pedidos salieran a su hora. (Sí: ya planificaba rutas mucho antes de SafeMaps).',
     'about.p3': 'Ahora formo parte de i.c.stars, un programa de formación en tecnología y liderazgo en Milwaukee, como analista de negocio y de control de calidad. Desarrollo aplicaciones web para proyectos de clientes reales, las presento y dirijo el turno de preguntas sobre el enfoque técnico y el valor para el negocio.',
     'about.p4': 'Trabajo en inglés y en español, y así construyo también: SafeMaps y mi puzle de Guernica funcionan en los dos idiomas.',
+    'about.people': 'Cómo trabajo con las personas',
+    'about.nvc': 'Creo en la comunicación no violenta: decir lo que veo y lo que necesito sin culpar a nadie, y escuchar con la misma atención lo que necesita la otra persona. En un equipo, discrepar es normal, y a menudo útil, siempre que se hable del trabajo y no de las personas.',
+    'about.empathy': 'La empatía guía mi forma de trabajar en equipo. Sé lo que es estar en una sala donde nadie te escucha, así que pregunto antes de dar nada por supuesto, dejo espacio a las voces más calladas e intento entender de dónde viene cada persona antes de decidir adónde vamos. Los equipos en los que la gente se siente segura hacen mejores preguntas, detectan antes los problemas y construyen mejores cosas.',
     'about.quote': 'La tecnología puede ayudarnos a recordar. Hice mi puzle de Guernica para que nunca olvidemos el valor de la acción pacífica y no violenta.',
 
     'skills.title': 'Con qué trabajo',

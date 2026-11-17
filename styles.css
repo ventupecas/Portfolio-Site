@@ -265,6 +265,7 @@ a:hover { color: var(--color-accent-dk); }
   align-items: start;
 }
 .about-text p + p { margin-top: 1rem; }
+.about-sub { font-size: 1.2rem; margin: 2rem 0 .6rem; }
 
 .pull-quote {
   position: relative;
