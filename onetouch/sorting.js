@@ -4,7 +4,7 @@
 // oldest, A first); a second click, descending; a third, back to the list's
 // own order. Empty cells stay at the bottom either way.
 //
-// Lists shown a page at a time (Assigned to me, Team families, the Team
+// Lists shown a page at a time (Assigned to me, Ticket families, the Team
 // tab's tickets, the Families page) sort every one of their tickets, not
 // just the page showing: they register in pagedSorts and draw themselves
 // again (some ask the server). Every other table is sorted where it is.

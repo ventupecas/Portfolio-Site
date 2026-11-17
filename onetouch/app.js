@@ -102,7 +102,7 @@ function setCurrentUser(user) {
     document.getElementById('teams-tab').hidden = !(currentAccess.admin || currentAccess.team);
     // 🧊 Architecture: admins only (architecture.js; the server checks too)
     document.getElementById('architecture-tab').hidden = !(currentAccess.admin || currentAccess.demo);
-    // Home's "Team families": project managers and admins
+    // Home's "Ticket families": project managers and admins
     document.getElementById('kpi-families-tab').hidden = !canSeeFamilies();
     // The 🔔 panel's "Email me these too" (notifications.js)
     paintEmailSetting(user ? user.email : null);
@@ -1967,7 +1967,7 @@ const HOME_MODES = ['assigned', 'charts', 'families', 'results', 'starred'];
 let homeMode = 'assigned';
 // Each search bumps its counter, so an older, slower answer can't replace a newer one
 const homeRuns = { assigned: 0, charts: 0, families: 0, results: 0, starred: 0 };
-// "Team families" (family KPIs) is for project managers and admins
+// "Ticket families" (family KPIs) is for project managers and admins
 const canSeeFamilies = () => Boolean(currentAccess.admin || currentAccess.role === 'project_manager');
 
 // The list each person had open last, remembered in this browser. (A new
@@ -2002,7 +2002,7 @@ function setHomeMode(mode, quiet = false, { keepDrill = false } = {}) {
         b.setAttribute('aria-selected', String(on));
     });
     for (const m of HOME_MODES) document.getElementById(`home-${m}`).hidden = m !== mode;
-    // Not remembered when it fell back: a project manager's "Team families" is
+    // Not remembered when it fell back: a project manager's "Ticket families" is
     // asked for again once their access has loaded
     if (currentUsername && mode === wanted) {
         try { localStorage.setItem(homeModeKey(), mode); } catch { /* not remembered; that's fine */ }
@@ -2585,7 +2585,7 @@ document.getElementById('my-charts-result').addEventListener('click', e => {
 
 // =====================================================================
 // KPIs (kpis.mjs): each ticket's in "Assigned to me", each family's (and its
-// tickets') in a project manager's "Team families". Green: on track; amber:
+// tickets') in a project manager's "Ticket families". Green: on track; amber:
 // keep an eye on it; red: needs attention. Hovering one says what it means.
 // =====================================================================
 
@@ -2629,7 +2629,7 @@ async function fillTicketKpis(container) {
 }
 
 // ---------------------------------------------------------------------
-// TEAM FAMILIES (project managers and admins): the team's families, those
+// TICKET FAMILIES (project managers and admins): the team's families, those
 // with open tickets first, by their most urgent open ticket and then their
 // oldest; each with its KPIs, and its tickets' at a click
 // ---------------------------------------------------------------------

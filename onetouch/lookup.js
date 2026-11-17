@@ -6,7 +6,7 @@
 // case doesn't matter. Escape empties the box.
 //
 // A list drawn whole is looked up where it is: the rows that don't match
-// hide. Lists shown a page at a time (Assigned to me, Team families, a
+// hide. Lists shown a page at a time (Assigned to me, Ticket families, a
 // family's tickets, the Team tab's tickets, the Families page) look through
 // all of their tickets: they register in pagedLookups and draw themselves
 // again (some ask the server, which looks up the same way: tickets.mjs
