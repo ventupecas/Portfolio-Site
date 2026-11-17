@@ -25,6 +25,14 @@
 
   --font-head: 'Merriweather', Georgia, 'Times New Roman', serif;
   --font-body: 'Source Sans 3', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-code: ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Code panels (the build editor and the button peeks); text about 14:1 on --code-bg */
+  --code-bg:      #16152a;
+  --code-bar:     #0f0e1e;
+  --code-line:    #2b2a48;
+  --code-text:    #e6e4f5;
+  --code-muted:   #9896bd;   /* comments and line numbers (about 6.3:1) */
 
   --max-width: 1040px;
   --radius: 14px;
@@ -374,6 +382,150 @@ a:hover { color: var(--color-accent-dk); }
   font-size: .95rem;
 }
 
+.rebuild {
+  margin-top: .4rem;
+  font: inherit; font-size: .9rem; font-weight: 600;
+  background: none; border: 0; padding: .2rem .4rem; cursor: pointer;
+  color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px;
+}
+.rebuild:hover { color: var(--color-accent-dk); }
+
+/* -------- The page building itself (build.js) --------
+   index.html adds .building and the raw-* classes before the first paint. Elements stay
+   hidden until their line of code is typed (.b-in), and each raw-* class gives them the
+   browser's plain default look until the CSS rule that styles them is typed. */
+html.building :is(.nav-logo, .nav-links, .lang-toggle, .eyebrow, .hero h1, .lead, .hero-actions, main, .footer):not(.b-in) {
+  visibility: hidden;
+}
+html.building :is(.nav-logo, .nav-links, .lang-toggle, .eyebrow, .hero h1, .lead, .hero-actions).b-in {
+  animation: b-pop .3s ease both;
+}
+@keyframes b-pop { from { opacity: 0; transform: translateY(6px); } }
+
+html.building :is(.navbar, .navbar *, .hero, .hero *) {
+  transition: background-color .7s ease, color .7s ease, border-color .7s ease, border-radius .7s ease,
+              padding .7s ease, letter-spacing .7s ease, box-shadow .7s ease;
+}
+
+/* raw-colors: the hero has no background yet (a page-colored layer fades away) */
+html.building .hero::before {
+  content: ""; position: absolute; inset: 0;
+  background: var(--color-bg); opacity: 0; pointer-events: none;
+  transition: opacity .9s ease;
+}
+html.raw-colors .hero::before { opacity: 1; }
+html.building .hero-inner { position: relative; }
+html.raw-colors :is(.hero, .lead, .eyebrow) { color: #000; }
+html.raw-colors .eyebrow { background-color: transparent; border-color: transparent; }
+
+/* raw-type: the browser's default serif */
+html.raw-type :is(.navbar, .hero) * { font-family: 'Times New Roman', Times, serif; }
+html.raw-type .eyebrow { text-transform: none; letter-spacing: 0; font-weight: 400; }
+html.raw-type .hero h1 { letter-spacing: 0; font-weight: 700; }
+
+/* raw-buttons: the hero's links are plain blue links */
+html.raw-buttons .hero :is(.button, .button-ghost) {
+  background-color: transparent; border-color: transparent; border-radius: 0;
+  color: #0000ee; text-decoration: underline; font-weight: 400; padding-left: 0; padding-right: .5rem;
+}
+
+/* raw-nav: a plain row of links and grey buttons */
+html.raw-nav .navbar {
+  background-color: transparent; border-bottom-color: transparent;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+html.raw-nav .nav-logo { color: #000; font-weight: 400; }
+html.raw-nav .monogram { background-color: transparent; color: #000; }
+html.raw-nav .nav-links a { color: #0000ee; text-decoration: underline; font-weight: 400; }
+html.raw-nav .lang-toggle { background-color: transparent; }
+html.raw-nav .lang-toggle button,
+html.raw-nav .lang-toggle button[aria-pressed="true"] {
+  background-color: #efefef; color: #000; border: 1px solid #767676; border-radius: 3px; font-weight: 400;
+}
+
+/* The editor panel that types the code */
+.builder {
+  position: fixed; z-index: 60;
+  right: clamp(1rem, 3vw, 2rem); bottom: clamp(1rem, 3vw, 2rem);
+  width: min(31rem, calc(100vw - 2rem));
+  background: var(--code-bg); color: var(--code-text);
+  border: 1px solid var(--code-line); border-radius: 12px; overflow: hidden;
+  box-shadow: 0 24px 60px rgba(10, 9, 30, .4);
+  font: 13px/1.6 var(--font-code); font-variant-ligatures: none;
+  opacity: 0; transform: translateY(16px) scale(.98);
+  transition: opacity .45s ease, transform .45s ease;
+}
+.builder.is-open { opacity: 1; transform: none; }
+
+.builder-bar { display: flex; align-items: stretch; background: var(--code-bar); font-size: 12px; }
+.builder-dots { display: flex; align-items: center; gap: 6px; padding: 0 .8rem; }
+.builder-dots i { width: 10px; height: 10px; border-radius: 50%; background: #ff6b6b; }
+.builder-dots i:nth-child(2) { background: var(--color-spark); }
+.builder-dots i:nth-child(3) { background: #5fd38d; }
+.builder-tab {
+  padding: .45rem .85rem; color: var(--code-muted);
+  border-top: 2px solid transparent; white-space: nowrap;
+}
+.builder-tab.is-active { background: var(--code-bg); color: var(--code-text); border-top-color: var(--color-spark); }
+
+.builder-code {
+  height: 14.5rem; overflow: auto; margin: 0; padding: .7rem .9rem .7rem 0;
+  font: inherit; white-space: pre-wrap; overflow-wrap: anywhere;
+  scrollbar-width: thin; scrollbar-color: var(--code-line) transparent;
+}
+.b-line { display: block; padding-left: 3.1rem; text-indent: -3.1rem; }
+.b-ln {
+  display: inline-block; width: 2.3rem; margin-right: .8rem; text-indent: 0;
+  text-align: right; color: var(--code-muted); opacity: .7; user-select: none;
+}
+.b-caret {
+  display: inline-block; width: .55em; height: 1.15em; margin-left: 1px; vertical-align: -.2em;
+  background: var(--color-spark); animation: b-blink 1s steps(1) infinite;
+}
+@keyframes b-blink { 50% { opacity: 0; } }
+
+.builder-status {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .5rem .9rem; border-top: 1px solid var(--code-line);
+}
+.builder-spin { width: 1em; text-align: center; color: var(--color-spark); font-size: 1.05em; }
+.builder-phrase { color: var(--code-text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.builder-meta { color: var(--code-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.builder-skip {
+  margin-left: auto; flex-shrink: 0;
+  font: inherit; font-size: 12px; cursor: pointer;
+  background: transparent; color: var(--code-text);
+  border: 1px solid var(--code-line); border-radius: 6px; padding: .15rem .6rem;
+}
+.builder-skip:hover { border-color: var(--color-spark); color: var(--color-spark); }
+.builder-skip:focus-visible { outline-color: var(--color-spark); }
+
+/* Syntax colors, shared with the peeks (each at least 7:1 on --code-bg) */
+.t-com  { color: var(--code-muted); font-style: italic; }
+.t-str  { color: #f4c66e; }
+.t-tag  { color: #8cc8ff; }
+.t-num  { color: #ffae94; }
+.t-kw   { color: #c9adff; }
+.t-fn   { color: #7fe0c8; }
+.t-attr { color: #b6c2ff; }
+
+/* The code behind a button, on hover or keyboard focus */
+.peek {
+  position: fixed; z-index: 70; top: 0; left: 0;
+  max-width: min(36rem, calc(100vw - 1rem));
+  padding: .55rem .8rem .65rem;
+  background: var(--code-bg); color: var(--code-text);
+  border: 1px solid var(--code-line); border-radius: 10px;
+  box-shadow: 0 14px 34px rgba(10, 9, 30, .35);
+  font: 12.5px/1.55 var(--font-code); font-variant-ligatures: none;
+  pointer-events: none; opacity: 0; transform: translateY(4px);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.peek.is-open { opacity: 1; transform: none; }
+.peek-file { display: flex; align-items: center; gap: .45rem; margin-bottom: .3rem; font-size: 11.5px; color: var(--code-muted); }
+.peek-icon { color: var(--color-spark); font-weight: 700; }
+.peek pre { margin: 0; font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
+
 /* -------- Scroll reveal (added by script.js, so nothing hides without JavaScript) -------- */
 .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
 .reveal.is-visible { opacity: 1; transform: none; }
@@ -396,4 +548,7 @@ a:hover { color: var(--color-accent-dk); }
   .lang-toggle { order: 1; }
   .nav-links { order: 2; width: 100%; justify-content: space-between; gap: .5rem; font-size: .95rem; }
   .job-head { flex-direction: column; gap: 0; }
+  .builder { font-size: 12px; }
+  .builder-code { height: 7.5rem; }
+  .builder-meta { display: none; }
 }

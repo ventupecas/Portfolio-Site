@@ -104,7 +104,8 @@ const STRINGS = {
     'contact.where': 'Vivo en la zona de Milwaukee.',
     'contact.email': 'Escríbeme',
 
-    'footer.text': 'Diseñado y programado a mano, cambio a cambio.'
+    'footer.text': 'Diseñado y programado a mano, cambio a cambio.',
+    'footer.rebuild': '↻ Ver cómo se construye esta página'
   }
 };
 
@@ -153,7 +154,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const lang = startingLanguage();
   if (lang !== 'en') setLanguage(lang);
 
-  // Fade sections and cards in as they scroll into view.
+  // Fade sections and cards in as they scroll into view; while the page is building
+  // itself (build.js), wait until it's done.
+  if (document.documentElement.classList.contains('building')) {
+    document.addEventListener('portfolio:built', startReveal, { once: true });
+  } else {
+    startReveal();
+  }
+});
+
+function startReveal() {
   if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
     const targets = document.querySelectorAll('.section > h2, .about-grid, .skills-groups, .project-card, .job, .contact-list');
     const io = new IntersectionObserver((entries) => {
@@ -170,4 +180,4 @@ document.addEventListener('DOMContentLoaded', () => {
       io.observe(el);
     });
   }
-});
+}
