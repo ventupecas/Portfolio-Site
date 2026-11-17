@@ -868,6 +868,17 @@ html.view-source .navbar { outline: 1px dashed rgba(170, 166, 255, .75); outline
 
 /* -------- Small additions for the playable cards and the timeline -------- */
 .guernica-label { pointer-events: none; }
+
+/* Each card opens its project when clicked (features.js); its own buttons, links and
+   mini apps keep working. On Guernica's art, clicks go through the drawn pieces to the
+   puzzle's link underneath, except on the loose piece, which can still be dragged in. */
+.project-card { cursor: pointer; }
+.project-card .mini { cursor: auto; }
+.project-card:has(.project-link:focus-visible) { transform: translateY(-6px); box-shadow: var(--shadow-lift); }
+.guernica-art .art-link { position: absolute; inset: 0; z-index: 1; }
+.guernica-art .pieces { z-index: 2; pointer-events: none; }
+.guernica-art .pieces .missing { pointer-events: auto; }
+.guernica-art .guernica-hint { pointer-events: none; z-index: 2; }
 .job-title { display: flex; align-items: center; flex-wrap: wrap; gap: .25rem .55rem; }
 .job-title .you-are-here { margin-left: 0; }
 .footer-hint { margin-top: .35rem; font-size: .85rem; }

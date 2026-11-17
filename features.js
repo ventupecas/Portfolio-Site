@@ -426,6 +426,18 @@
     });
   }
 
+  // CARDS: a click anywhere on a card opens its project (its first link, the demo), except on
+  // the card's own links and buttons, inside a mini app or verse, or when selecting its text
+  $$('.project-card').forEach((card) => {
+    const main = $('.project-link', card);
+    if (!main) return;
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('a, button, input, textarea, select, .mini, .guernica-verse')) return;
+      if (String(getSelection()).trim()) return;
+      main.click();
+    });
+  });
+
   // ---------------------------------------------------------------
   // VIDEO: a short clip on hover
   // ---------------------------------------------------------------
