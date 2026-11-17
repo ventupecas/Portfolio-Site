@@ -1,38 +1,74 @@
-// Camera, light, labels, picking, focus, and the journey player. ui.js talks to this through ENGINE.
+// Camera, light, sky, labels, picking, focus, the journey player and the showreel. ui.js talks to this through ENGINE.
 window.ENGINE = (() => {
-  const { PLACES, FLOWS, MODES, DISTRICTS } = CITY;
+  const { PLACES, FLOWS, MODES, DISTRICTS, NAMES } = CITY;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const listeners = {};
   const emit = (name, data) => (listeners[name] || []).forEach((fn) => fn(data));
   const on = (name, fn) => (listeners[name] = listeners[name] || []).push(fn);
 
-  let wrap, renderer, scene, camera, controls, hemi, sun, ghost, ring, labels = [], labelBox, tip;
+  let wrap, renderer, scene, camera, controls, hemi, sun, ghost, ring, labels = [], labelBox, tip, lampGlow, caption;
+  let night = null; // the scene by night (true) or by day (false); null: as the device's own light or dark setting
+  let reel = null, idle = 0; // the showreel, while it plays; seconds since anyone touched the page
   let traffic = !reduced, clock = 0, last = 0, frame = 0;
+  // Sharpness: the scene is drawn with more pixels than the screen shows (twice as many each way on an ordinary
+  // screen), and each screen pixel is the average of several: edges and far windows come out smooth. Where the
+  // computer can't keep up it's drawn with fewer, a step at a time; one with no graphics card at all, where a
+  // frame takes seconds, goes straight down, to fewer pixels than the screen's. ?res=2 in the address fixes it instead.
+  const fixedRes = Number(new URLSearchParams(location.search).get("res")) || 0;
+  const MAX_PIXELS = fixedRes ? 4e7 : 6.5e6, LEAST = 0.5;
+  let sharpness = fixedRes ? Math.min(fixedRes, 4) : Math.min(3, Math.max(2, (window.devicePixelRatio || 1) * 1.5));
+  let timed = 0, span = 0, crawl = 0, resumed = false, software = false;
+  // rAF stops while the page is out of sight: the frame it comes back with is no measure of anything.
+  document.addEventListener("visibilitychange", () => { resumed = true; });
+  // ?show=0 in the address: never start the showreel unasked. ?show=1: start it straight away (a booth screen).
+  const wanted = new URLSearchParams(location.search).get("show");
+  const attract = wanted !== "0" && !reduced;
   let flight = null, selected = null, hovered = null, litPlaces = null;
   let tour = null, tourCar = null, tourMode = null, payload = null;
   const byId = {};
   const ray = new THREE.Raycaster(), pointer = new THREE.Vector2();
-  let pointerSeen = false, downAt = null, placeMeshes = [], vehicleBodies = [];
+  let pointerSeen = false, downAt = null, lastTap = null, placeMeshes = [], vehicleBodies = [];
+  // Zoom: from the whole city down to a balcony. NEAREST: how close the camera comes to what it zooms toward.
+  const NEAREST = 1.6, FARTHEST = 1200;
+  let zoomGoal = 0, zoomAt = null, aimedAt = null;
 
   const NOTES = [
     { text: "Browser Town", sub: "runs on the visitor's device", x: -100, y: 8, z: -108, sign: "green" },
     { text: "Server Downtown", sub: "the FastAPI process", x: 118, y: 10, z: -28, sign: "blue" },
     { text: "Build Yard", sub: "commands run by hand", x: 40, y: 6, z: 112, sign: "orange" },
     { text: "Outside Services", sub: "data leaves the computer", x: -20, y: 18, z: -164, sign: "yellow" },
-    { text: "The river is the network", sub: "crossing it is an HTTP request", x: -18, y: 4, z: -32, sign: "river" },
+    { text: "The Canal is the network", sub: "crossing it is an HTTP request", x: -18, y: 4, z: -32, sign: "river" },
     { text: "Rust Subway", sub: "backend/rust_kernel", x: 88, y: 0, z: 46, sign: "rust" },
   ];
 
-  function init(el) {
-    wrap = el;
+  // A browser drawing without a graphics card, on the processor (SwiftShader, llvmpipe): there every pixel is
+  // costly, and smoothing the edges most of all, so frames take seconds at full sharpness.
+  function drawsInSoftware() {
     try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+      const gl = document.createElement("canvas").getContext("webgl");
+      if (!gl) return false;
+      const info = gl.getExtension("WEBGL_debug_renderer_info");
+      const name = String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER));
+      const lose = gl.getExtension("WEBGL_lose_context");
+      if (lose) lose.loseContext();
+      return /swiftshader|llvmpipe|softpipe|software|basic render/i.test(name);
     } catch (error) {
       return false;
     }
-    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  }
+
+  function init(el) {
+    wrap = el;
+    software = drawsInSoftware();
+    if (software && !fixedRes) sharpness = 1; // and no smoothing or shadows: plain, but it keeps up
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: !software, powerPreference: "high-performance" });
+    } catch (error) {
+      return false;
+    }
+    renderer.setPixelRatio(sharpness);
     renderer.outputEncoding = THREE.sRGBEncoding;
-    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = !software;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.shadowMap.autoUpdate = false;
     wrap.prepend(renderer.domElement);
@@ -42,7 +78,7 @@ window.ENGINE = (() => {
     camera = new THREE.PerspectiveCamera(30, 1, 5, 3000);
     controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true; controls.dampingFactor = 0.08;
-    controls.maxPolarAngle = 1.42; controls.minDistance = 28; controls.maxDistance = 1200;
+    controls.maxPolarAngle = 1.42; controls.minDistance = NEAREST; controls.maxDistance = FARTHEST;
     controls.screenSpacePanning = false;
 
     hemi = new THREE.HemisphereLight("#ffffff", "#b8bfc6", 0.75);
@@ -54,9 +90,11 @@ window.ENGINE = (() => {
     scene.add(hemi, sun, sun.target);
 
     ghost = new THREE.MeshLambertMaterial({ color: "#ece9e2" });
-    placeMeshes = WORLD.buildAll(scene);
+    placeMeshes = WORLD.buildAll(scene, renderer.capabilities.getMaxAnisotropy());
     PLACES.forEach((p) => (byId[p.id] = p));
     TRAFFIC.build(scene, byId);
+    SAMPLE.build(scene);
+    addLampGlow();
     for (const f of FLOWS) if (f.vehicle) { f.vehicle.userData.body.userData.flow = f; vehicleBodies.push(f.vehicle.userData.body); }
     for (const f of FLOWS) { (byId[f.from].flows = byId[f.from].flows || []).push(f); (byId[f.to].flows = byId[f.to].flows || []).push(f); }
 
@@ -69,25 +107,59 @@ window.ENGINE = (() => {
     matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
 
     bindPointer();
+    bindZoom();
+    bindIdle();
     new ResizeObserver(resize).observe(wrap);
     resize();
     overview(true);
     ghostAll(null);
     requestAnimationFrame(loop);
+    if (wanted === "1") setTimeout(startReel, 1500);
     return true;
   }
 
-  const isDark = () => matchMedia("(prefers-color-scheme: dark)").matches;
+  const isDark = () => (night === null ? matchMedia("(prefers-color-scheme: dark)").matches : night);
+
+  // The sky behind the model: Madrid's pale blue over a warm haze by day, deep blue with a few stars by night.
+  const skies = {};
+  function sky(dark) {
+    const key = dark ? "night" : "day";
+    if (skies[key]) return skies[key];
+    const c = document.createElement("canvas"); c.width = 512; c.height = 512;
+    const x = c.getContext("2d"), g = x.createLinearGradient(0, 0, 0, 512);
+    for (const [at, color] of dark ? [[0, "#070d1c"], [0.55, "#111c36"], [1, "#2a3556"]] : [[0, "#a9cfee"], [0.5, "#d3e6f1"], [1, "#f4e7d2"]]) g.addColorStop(at, color);
+    x.fillStyle = g; x.fillRect(0, 0, 512, 512);
+    if (dark) { x.fillStyle = "rgba(255,255,255,.8)"; for (let i = 0; i < 70; i++) { const r = Math.random() * 0.55 + 0.25; x.beginPath(); x.arc(Math.random() * 512, Math.random() * 230, r, 0, 7); x.fill(); } }
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding;
+    return (skies[key] = t);
+  }
+
+  // Every street lamp as a soft point of light, shown at night.
+  function addLampGlow() {
+    const c = document.createElement("canvas"); c.width = c.height = 64;
+    const x = c.getContext("2d"), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0, "rgba(255,240,205,1)"); g.addColorStop(0.18, "rgba(255,214,140,.85)"); g.addColorStop(0.5, "rgba(255,190,100,.28)"); g.addColorStop(1, "rgba(255,180,80,0)");
+    x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(WORLD.lamps.flat(), 3));
+    const mat = new THREE.PointsMaterial({ size: 30, map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true });
+    // Close up, a lamp's glow would fill the screen: no bigger than a hand's width.
+    mat.onBeforeCompile = (shader) => { shader.vertexShader = shader.vertexShader.replace("#include <fog_vertex>", "gl_PointSize = min( gl_PointSize, 160.0 );\n#include <fog_vertex>"); };
+    lampGlow = new THREE.Points(geo, mat);
+    lampGlow.renderOrder = 5; lampGlow.visible = false;
+    scene.add(lampGlow);
+  }
 
   function applyTheme() {
     const dark = isDark();
     const css = getComputedStyle(document.documentElement);
-    scene.background = new THREE.Color(css.getPropertyValue("--scene").trim() || (dark ? "#0d141c" : "#dfe5ea"));
-    hemi.color.set(dark ? "#8aa2cc" : "#ffffff"); hemi.groundColor.set(dark ? "#232c3a" : "#b8bfc6"); hemi.intensity = dark ? 0.62 : 0.75;
-    sun.color.set(dark ? "#a9bfe8" : "#fff1dc"); sun.intensity = dark ? 0.4 : 0.95;
-    WORLD.water.color.set(dark ? "#14374e" : "#7db4d0");
-    WORLD.land.color.set(dark ? "#4a5461" : "#8f98a3");
-    WORLD.fabric.emissiveIntensity = dark ? 0.6 : 0;
+    scene.background = sky(dark);
+    hemi.color.set(dark ? "#8aa2cc" : "#ffffff"); hemi.groundColor.set(dark ? "#232c3a" : "#cdbfa8"); hemi.intensity = dark ? 0.64 : 0.72;
+    sun.color.set(dark ? "#a9bfe8" : "#ffedd0"); sun.intensity = dark ? 0.34 : 1.0;
+    WORLD.water.color.set(dark ? "#14374e" : "#79b7cf");
+    WORLD.land.color.set(dark ? "#3d444e" : "#737980");
+    WORLD.fabric.emissiveIntensity = dark ? 0.85 : 0;
+    if (lampGlow) lampGlow.visible = dark;
     ghost.color.set(dark ? "#77828f" : "#ece9e2");
     for (const p of PLACES) p.mesh.userData.mat.emissiveIntensity = dark ? 1 : 0;
     ring.material.color.set(dark ? "#ffffff" : "#0b7a53");
@@ -121,6 +193,14 @@ window.ENGINE = (() => {
       labelBox.append(el);
       labels.push({ el, note: true, x: n.x, y: n.y, z: n.z, hidden: true });
     }
+    // Street names, on the tiles Madrid writes them on.
+    for (const [name, x, z] of NAMES) {
+      const el = document.createElement("div");
+      el.className = "sign plaque";
+      el.textContent = name;
+      labelBox.append(el);
+      labels.push({ el, street: true, x, y: 1, z, hidden: true });
+    }
     for (const l of labels) { l.el.hidden = true; }
   }
 
@@ -128,11 +208,14 @@ window.ENGINE = (() => {
   function layoutLabels() {
     const w = wrap.clientWidth, h = wrap.clientHeight, dist = camera.position.distanceTo(controls.target);
     const nearEnough = dist < 330, far = dist > 260;
+    const reach = Math.max(160, dist * 5); // zoomed in close, nothing labeled from right across the city
     const scored = [];
     for (const l of labels) {
       const p = l.place;
       let rank = -1;
-      if (l.note) rank = tour || litPlaces ? -1 : far ? 90 : -1;
+      if (p !== selected && camera.position.distanceTo(V.set(l.x, l.y, l.z)) > reach) rank = -1;
+      else if (l.street) rank = tour || litPlaces || dist > 520 ? -1 : 20;
+      else if (l.note) rank = tour || litPlaces ? -1 : far ? 90 : -1;
       else {
         const off = !p || (litPlaces && !litPlaces.has(p.id));
         if (p === selected || p === hovered) rank = 100;
@@ -176,6 +259,15 @@ window.ENGINE = (() => {
       const moved = !downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 6;
       downAt = null;
       if (moved) return;
+      // A second tap or click on the same spot, straight after the first: fly in to it.
+      const now = performance.now();
+      if (lastTap && now - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 24) {
+        lastTap = null;
+        const at = spotUnder(e.clientX, e.clientY);
+        if (at) diveTo(at);
+        return;
+      }
+      lastTap = { t: now, x: e.clientX, y: e.clientY };
       const r = c.getBoundingClientRect();
       pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
       const hit = pick();
@@ -192,6 +284,57 @@ window.ENGINE = (() => {
     if (!hits.length) return null;
     const u = hits[0].object.userData;
     return u.flow ? { flow: u.flow } : { place: u.place };
+  }
+
+  // ---- Zoom
+  // The point in the city under a spot on the screen: a building, the street, the water; or out where the
+  // ground would be, past the city's edge. null at the sky.
+  function spotUnder(cx, cy) {
+    const r = renderer.domElement.getBoundingClientRect();
+    pointer.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(pointer, camera);
+    const hit = ray.intersectObjects([...placeMeshes, ...WORLD.solids], false)[0];
+    if (hit) return hit.point.clone();
+    const t = -ray.ray.origin.y / ray.ray.direction.y;
+    return t > 0 && t < 4000 ? ray.ray.origin.clone().addScaledVector(ray.ray.direction, t) : null;
+  }
+  // The camera and the point it turns round, both brought k times as near to at: at stays where it is on the
+  // screen, and the view keeps its direction.
+  function zoomBy(k, at) {
+    const span = camera.position.distanceTo(controls.target), gap = camera.position.distanceTo(at);
+    k = Math.min(Math.max(k, NEAREST / span, NEAREST / gap), FARTHEST / span);
+    camera.position.sub(at).multiplyScalar(k).add(at);
+    controls.target.sub(at).multiplyScalar(k).add(at);
+  }
+  // Fly in to a spot: it comes to the middle of the screen, seen from the same side, much nearer.
+  function diveTo(at, k = 0.32) {
+    const off = camera.position.clone().sub(controls.target);
+    const len = Math.max(NEAREST * 2.5, Math.min(off.length() * k, 60));
+    flyTo({ pos: at.clone().add(off.setLength(len)), target: at }, 0.8);
+  }
+  // In (dir 1) or out (-1), about the middle of the screen: the + and - buttons and keys.
+  function zoom(dir) {
+    flight = null; zoomAt = controls.target.clone(); aimedAt = null;
+    zoomGoal -= dir * 0.5;
+  }
+  // The wheel (and a trackpad's pinch) zooms toward whatever is under the pointer. It's caught on its way
+  // down to the canvas, before the orbit controls' own wheel zoom, which only goes toward the middle.
+  function bindZoom() {
+    wrap.addEventListener("wheel", (e) => {
+      if (e.target !== renderer.domElement && !(e.target.closest && e.target.closest(".labels"))) return;
+      e.preventDefault(); e.stopPropagation();
+      flight = null;
+      const now = performance.now();
+      // where it points, worked out again only when the pointer has moved or the wheel has rested
+      if (!aimedAt || now - aimedAt.t > 300 || Math.hypot(e.clientX - aimedAt.x, e.clientY - aimedAt.y) > 6) {
+        zoomAt = spotUnder(e.clientX, e.clientY) || controls.target.clone();
+        aimedAt = { x: e.clientX, y: e.clientY };
+      }
+      aimedAt.t = now;
+      let px = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+      if (e.ctrlKey) px *= 3; // a pinch on a trackpad comes in small steps
+      zoomGoal += Math.max(-250, Math.min(250, px)) * 0.0016;
+    }, { capture: true, passive: false });
   }
 
   function setHover(place, flow) {
@@ -233,7 +376,7 @@ window.ENGINE = (() => {
     const flows = (p.flows || []).filter(TRAFFIC.running);
     TRAFFIC.setFocus({ flows: new Set(flows.map((f) => f.id)) });
     const keep = endpoints(flows); keep.add(id); ghostAll(keep);
-    reveal(p.d === "kernel");
+    reveal(p.d === "kernel"); SAMPLE.show(false);
     ring.visible = true; ring.position.set(p.x, p.mesh.position.y + 0.4, p.z);
     p.ringSize = p.kind === "island" ? 22 : 15; ring.scale.setScalar(p.ringSize);
     frameBox(pointsOf([p]), 90);
@@ -246,7 +389,7 @@ window.ENGINE = (() => {
     const flows = FLOWS.filter((f) => f.mode === mode && TRAFFIC.running(f));
     TRAFFIC.setFocus({ flows: new Set(flows.map((f) => f.id)) });
     const ends = endpoints(flows);
-    ghostAll(ends);
+    ghostAll(ends); SAMPLE.show(false);
     reveal(mode === "subway");
     if (mode === "subway") frameBox(pointsOf([...ends].map((id) => byId[id])), 200);
     emit("focus", { mode });
@@ -257,7 +400,7 @@ window.ENGINE = (() => {
     const f = TRAFFIC.flows[id];
     selected = null; ring.visible = false;
     TRAFFIC.setFocus({ flows: new Set([id]) });
-    ghostAll(endpoints([f]));
+    ghostAll(endpoints([f])); SAMPLE.show(false);
     reveal(f.mode === "subway");
     frameBox(f.out.pts, 70);
     emit("focus", { flow: f });
@@ -266,7 +409,7 @@ window.ENGINE = (() => {
   function clear(fly) {
     if (tour) stopTour();
     selected = null; ring.visible = false;
-    TRAFFIC.setFocus(null); ghostAll(null); reveal(false);
+    TRAFFIC.setFocus(null); ghostAll(null); reveal(false); SAMPLE.show(true);
     if (fly) overview();
     emit("focus", {});
   }
@@ -281,6 +424,8 @@ window.ENGINE = (() => {
   function resize() {
     const w = wrap.clientWidth, h = wrap.clientHeight;
     if (!w || !h) return;
+    // No more pixels than a graphics card of the usual kind fills smoothly, however large the window.
+    renderer.setPixelRatio(Math.min(sharpness, Math.sqrt(MAX_PIXELS / (w * h))));
     renderer.setSize(w, h, false);
     renderer.domElement.style.width = w + "px"; renderer.domElement.style.height = h + "px";
     camera.aspect = w / h; camera.updateProjectionMatrix();
@@ -299,10 +444,81 @@ window.ENGINE = (() => {
     if (reduced || seconds === 0) { camera.position.copy(v.pos); controls.target.copy(v.target); controls.update(); flight = null; return; }
     flight = { t: 0, seconds, fromPos: camera.position.clone(), fromTarget: controls.target.clone(), ...v };
   }
+  const overviewDist = () => Math.min(900, 250 / (Math.tan((15 * Math.PI) / 180) * Math.max(camera.aspect, 0.8)));
   function overview(instant) {
-    const dist = Math.min(900, 250 / (Math.tan((15 * Math.PI) / 180) * Math.max(camera.aspect, 0.8)));
-    flyTo(view(new THREE.Vector3(20, 0, -22), dist, 0.84, 0.08), instant ? 0 : 1.4);
+    flyTo(view(new THREE.Vector3(20, 0, -22), overviewDist(), 0.84, 0.08), instant ? 0 : 1.4);
   }
+
+  // The sample trip, close up: what the planner draws, and why the green route is the one it recommends.
+  function showSample() {
+    clear();
+    const box = new THREE.Box3().setFromPoints(SAMPLE.points()), c = box.getCenter(new THREE.Vector3());
+    flyTo(view(c, Math.min(520, 150 / Math.min(1.1, camera.aspect) + 120), 0.82, 0.45));
+    emit("focus", { sample: true });
+  }
+
+  // ---- The showreel: with nobody at the controls, the city shows itself, one shot after another, by day and
+  // then by night. Any touch, click or key hands the controls back.
+  const IDLE_S = 75;
+  const REEL = [
+    { title: "Safe Route City", text: "Every part of the Safe Route Planner, built as Chamberí, Madrid.", whole: true, secs: 11 },
+    { title: "Safety first", text: "Green is the route the planner recommends. Gray is the fastest: a left turn across traffic, a school zone, a work zone.", sample: true, secs: 14 },
+    { title: "Puerta del Sol", text: "Browser Town: the page itself, running on the visitor's device.", at: "core", dist: 150, az: -0.5, secs: 9 },
+    { title: "Landmarks of Spain", text: "The app's main parts are Spain's landmarks. The trip is planned in the Palacio de Cibeles and crosses the Canal to Atocha.", at: "app", dist: 175, polar: 0.98, az: 0.55, secs: 11 },
+    { title: "The Canal is the network", text: "Every taxi, bus and courier crossing it is an HTTP request.", target: [-18, 0, -28], dist: 170, polar: 1.02, az: 0.2, secs: 9 },
+    { title: "Server Downtown", text: "One Python process plans every trip, along the Paseo de la Castellana.", at: "engine", dist: 210, polar: 1.0, az: 0.9, secs: 10 },
+    { title: "Andén 0", text: "Under the streets, the route search runs in Rust.", at: "search_rs", dist: 150, polar: 0.85, az: 0.3, under: true, secs: 9 },
+    { title: "Flights cost money", text: "Only Google's Routes API is paid for. The control tower caps it by the day.", at: "atc", dist: 190, polar: 1.02, az: -0.6, secs: 9 },
+    { title: "Out past the Canal", text: "Services beyond the computer stand on islands: the Guggenheim, the Torre del Oro, the Aqueduct of Segovia, the Sagrada Família.", target: [186, 0, 10], dist: 300, polar: 1.0, az: -1.05, secs: 11 },
+  ];
+  function startReel() {
+    if (reel || reduced) return;
+    clear();
+    reel = { i: -1, t: 0, lap: 0, was: night };
+    controls.autoRotate = true; controls.autoRotateSpeed = 0.45;
+    emit("reel", true);
+    reelShot(0);
+  }
+  function stopReel() {
+    if (!reel) return;
+    const was = reel.was;
+    reel = null; controls.autoRotate = false; caption.hidden = true; reveal(false);
+    if (night !== was) { night = was; applyTheme(); }
+    emit("reel", false);
+  }
+  function reelShot(i) {
+    if (i >= REEL.length) { i = 0; reel.lap++; night = !isDark(); applyTheme(); } // the next lap in the other light
+    const s = REEL[i];
+    reel.i = i; reel.t = 0;
+    reveal(!!s.under);
+    let target, dist = s.dist || 160;
+    if (s.whole) { target = new THREE.Vector3(20, 0, -22); dist = overviewDist() * 0.92; }
+    else if (s.sample) { target = new THREE.Box3().setFromPoints(SAMPLE.points()).getCenter(new THREE.Vector3()); dist = 230; }
+    else if (s.at) target = new THREE.Vector3(byId[s.at].x, byId[s.at].mesh.position.y, byId[s.at].z);
+    else target = new THREE.Vector3(s.target[0], s.target[1], s.target[2]);
+    flyTo(view(target, dist, s.polar || (s.whole ? 0.84 : 0.9), s.az === undefined ? (s.whole ? 0.08 : 0.5) : s.az), 2.6);
+    caption.firstChild.textContent = s.title; caption.lastChild.textContent = s.text;
+    caption.hidden = false; caption.classList.remove("in"); void caption.offsetWidth; caption.classList.add("in");
+  }
+  function updateReel(dt) {
+    reel.t += dt;
+    if (reel.t > REEL[reel.i].secs) reelShot(reel.i + 1);
+  }
+  // Whoever touches the page takes over; left alone for IDLE_S, it starts showing itself again.
+  function bindIdle() {
+    caption = wrap.querySelector(".caption");
+    const touched = (e) => {
+      idle = 0;
+      if (!reel) return;
+      // The showreel's own button stops it itself, with a click or with Enter or Space: anything else stops it here.
+      const itsButton = e.target.closest && e.target.closest("#show");
+      if (itsButton && (e.type !== "keydown" || e.key === "Enter" || e.key === " ")) return;
+      stopReel();
+    };
+    for (const name of ["pointerdown", "pointermove", "wheel", "keydown", "touchstart"]) addEventListener(name, touched, { passive: true, capture: true });
+  }
+  const toggleReel = () => (reel ? stopReel() : startReel());
+  function setNight(v) { if (reel) reel.was = v; night = v; applyTheme(); emit("night", isDark()); }
   const pointsOf = (places) => places.map((p) => new THREE.Vector3(p.x, p.mesh.position.y, p.z));
   function frameBox(points, minDist) {
     const box = new THREE.Box3().setFromPoints(points), c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
@@ -314,7 +530,7 @@ window.ENGINE = (() => {
 
   // ---- Journeys
   function startTour(id) {
-    clear();
+    stopReel(); clear(); SAMPLE.show(false);
     const def = TOURS.find((t) => t.id === id);
     setMap(def.map);
     tour = { def, i: -1, trail: new Set(), seen: new Set(), now: new Set(), playing: !reduced, t: 0, dur: 1, wait: 0, path: null };
@@ -401,12 +617,38 @@ window.ENGINE = (() => {
     }
   }
 
+  // The point the camera turns round stays over the city, and the camera above the street.
+  const BOUNDS = [CITY.SLAB[0] - 30, CITY.SLAB[1] + 30, CITY.SLAB[2] - 60, CITY.SLAB[3] + 30];
+  function keepInCity() {
+    const t = controls.target;
+    const x = Math.min(BOUNDS[1], Math.max(BOUNDS[0], t.x)), z = Math.min(BOUNDS[3], Math.max(BOUNDS[2], t.z)), y = Math.min(80, Math.max(-12, t.y));
+    if (x !== t.x || y !== t.y || z !== t.z) { camera.position.x += x - t.x; camera.position.y += y - t.y; camera.position.z += z - t.z; t.set(x, y, z); }
+    if (camera.position.y < 0.9 && !reel) camera.position.y = 0.9;
+  }
+
   // ---- The loop
   function loop(now) {
     requestAnimationFrame(loop);
-    const dt = Math.min(0.05, (now - last) / 1000 || 0);
+    const took = (now - last) / 1000 || 0;
+    const dt = Math.min(0.05, took);
+    // Once the page has settled, fewer pixels from here on: a step down under about 24 frames a second over
+    // three seconds; straight down under 6, or when two frames running take half a second or more each.
+    if (!fixedRes && sharpness > LEAST && !resumed && now > 3000 && !document.hidden) {
+      crawl = took > 0.5 ? crawl + 1 : 0;
+      timed++; span += Math.min(took, 1); // one long hitch counts for no more than a second
+      if (crawl >= 2 || span >= 3) {
+        const rate = crawl >= 2 ? 0 : timed / span;
+        if (rate < 24) { sharpness = rate < 6 ? (sharpness > 1 ? 1 : LEAST) : Math.max(1, sharpness - 0.5); resize(); }
+        timed = span = crawl = 0;
+      }
+    }
+    resumed = false;
     last = now; clock += dt; frame++;
+    idle += dt;
+    if (reel) updateReel(dt);
+    else if (attract && idle > IDLE_S && !tour && !document.hidden) startReel();
     if (traffic) {
+      SAMPLE.update(dt, clock);
       TRAFFIC.update(dt, clock);
       const w = WORLD.wave(); if (w) w.offset.set(clock * 0.006, clock * 0.004);
     }
@@ -418,7 +660,17 @@ window.ENGINE = (() => {
       controls.target.lerpVectors(flight.fromTarget, flight.target, e);
       if (k >= 1) flight = null;
     }
+    if (zoomGoal && zoomAt) { // eased over a few frames, so a wheel's clicks come out as one smooth move
+      const step = reduced || Math.abs(zoomGoal) < 0.003 ? zoomGoal : zoomGoal * Math.min(1, dt * 14);
+      zoomBy(Math.exp(step), zoomAt); zoomGoal -= step;
+    }
+    const orbit = camera.position.distanceTo(controls.target);
+    controls.maxPolarAngle = 1.42 + 0.12 * Math.min(1, Math.max(0, (90 - orbit) / 70)); // close up, nearly level, as from the street
     controls.update();
+    keepInCity();
+    // How near the camera can see: near enough for a balcony up close, far enough out for the depth to stay exact.
+    const near = Math.min(5, Math.max(0.08, orbit * 0.03));
+    if (Math.abs(near - camera.near) > camera.near * 0.1) { camera.near = near; camera.updateProjectionMatrix(); }
     if (ring.visible && !reduced) ring.material.opacity = 0.6 + 0.35 * Math.sin(clock * 3.2);
     if (pointerSeen && frame % 4 === 0 && !downAt) {
       const hit = pick();
@@ -430,5 +682,10 @@ window.ENGINE = (() => {
   }
 
   const setTraffic = (v) => { traffic = v; emit("traffic", v); };
-  return { init, on, select, selectMode, selectFlow, clear, setMap, startTour, stopTour, nextStep, prevStep, goStep, togglePlay, overview, setTraffic, traffic: () => traffic, byId, reduced, getTour: () => tour };
+  // What the last frame took to draw, and how sharply: ENGINE.stats() in the browser's console, to see how a computer copes.
+  // distance: from the camera to the point it turns round, which zooming changes. software: drawn without a graphics card.
+  const stats = () => ({ triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, pixelRatio: renderer.getPixelRatio(), width: renderer.domElement.width, height: renderer.domElement.height, distance: Math.round(camera.position.distanceTo(controls.target) * 10) / 10, software });
+  // The camera put straight at a spot on the ground: from how far, how steeply (0 is from overhead) and from which side.
+  const lookAt = (x, z, dist = 120, polar = 0.9, azimuth = 0.4) => flyTo(view(new THREE.Vector3(x, 0, z), dist, polar, azimuth), 0);
+  return { init, on, select, selectMode, selectFlow, clear, setMap, startTour, stopTour, nextStep, prevStep, goStep, togglePlay, overview, setTraffic, traffic: () => traffic, byId, reduced, getTour: () => tour, showSample, toggleReel, stopReel, setNight, isDark, lookAt, stats, zoom };
 })();

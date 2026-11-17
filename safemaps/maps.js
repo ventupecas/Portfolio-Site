@@ -27,6 +27,7 @@
 //   await view.search(container, placeholder, onPick(place))   place search in a box
 //   await view.reverse(point)             the nearest address, { label, countryCode }, or null
 //   view.credit(text, on)                 a credit line for data drawn on the map
+//   view.outline(box)                     a dashed line around { south, west, north, east }: the area trips stay in
 //
 // Points are { lat, lng }. Google's terms don't allow its results on another
 // map, so the OpenStreetMap page never loads Google at all. Its traffic layer
@@ -72,15 +73,19 @@ const Z_OVERLAY = 2;
 const Z_TRAFFIC = 3;
 const PHOTON = "https://photon.komoot.io/api/";
 const PHOTON_REVERSE = "https://photon.komoot.io/reverse";
-// The OpenStreetMap Foundation's address lookup (fair use: one lookup per click is well inside it).
+// The OpenStreetMap Foundation's address lookup (fair use: one lookup per click, or per search asked for
+// with Enter, is well inside it; searching as each letter is typed isn't allowed).
 const NOMINATIM_REVERSE = "https://nominatim.openstreetmap.org/reverse";
+const NOMINATIM_SEARCH = "https://nominatim.openstreetmap.org/search";
 const LOOKUP_TIMEOUT_MS = 5000;
-const SEARCH_BIAS = { lat: 43.0389, lng: -87.9065 }; // prefer places around Milwaukee
+const SEARCH_BIAS = { lat: 43.0389, lng: -87.9065 }; // Milwaukee: where search looks first unless the page says (home)
 
 // trafficTiles: the OpenStreetMap map's traffic layer, a tile URL template ({z}/{x}/{y}); none means no layer.
 // language: "en" or "es", for Google's map: its labels, controls and place search.
-export function createMapView(kind, { mapsApiKey, mapId, onAuthFailure, trafficTiles = null, language = "en" } = {}) {
-  return kind === "osm" ? new OsmView(trafficTiles) : new GoogleView(mapsApiKey, mapId, onAuthFailure, language);
+// home: where place search looks first (the middle of the server's road map). area: the box trips stay in, on the
+// OpenStreetMap map: its place search suggests nothing outside it.
+export function createMapView(kind, { mapsApiKey, mapId, onAuthFailure, trafficTiles = null, language = "en", home = SEARCH_BIAS, area = null } = {}) {
+  return kind === "osm" ? new OsmView(trafficTiles, home, area) : new GoogleView(mapsApiKey, mapId, onAuthFailure, language, home);
 }
 
 // ---- Google
@@ -89,8 +94,9 @@ class GoogleView {
   hasTraffic = true;
   switchesDark = false;
 
-  constructor(apiKey, mapId, onAuthFailure, language) {
+  constructor(apiKey, mapId, onAuthFailure, language, home) {
     this.language = language;
+    this.home = home;
     this.apiKey = apiKey;
     this.mapId = mapId || "DEMO_MAP_ID";
     this.onAuthFailure = onAuthFailure;
@@ -287,6 +293,9 @@ class GoogleView {
   // Google's own credits cover everything this map draws.
   credit() {}
 
+  // Google's own routes go anywhere, so this map is never given an area to mark.
+  outline() {}
+
   // Needs the Geocoding API enabled for the key; without it, clicked points keep their coordinates.
   async reverse(point) {
     try {
@@ -312,7 +321,7 @@ class GoogleView {
       try {
         search = new PlaceAutocompleteElement({
           includedRegionCodes: ["us"],
-          locationBias: { center: SEARCH_BIAS, radius: 50000 },
+          locationBias: { center: this.home, radius: 50000 },
         });
       } catch (error) {
         console.warn("Place search options not accepted; using defaults:", error);
@@ -345,7 +354,9 @@ class GoogleView {
 class OsmView {
   switchesDark = true;
 
-  constructor(trafficTiles) {
+  constructor(trafficTiles, home, area) {
+    this.home = home;
+    this.area = area;
     this.trafficTiles = trafficTiles;
     this.hasTraffic = Boolean(trafficTiles);
     this.trafficLayer = null;
@@ -498,8 +509,19 @@ class OsmView {
     else this.credits.delete(text) && this.map.attributionControl.removeAttribution(text);
   }
 
+  // Under the routes and pins, and not in the way of clicks.
+  outline({ south, west, north, east }) {
+    L.rectangle(
+      [
+        [south, west],
+        [north, east],
+      ],
+      { color: "#64748b", weight: 2, opacity: 0.85, dashArray: "6 8", fill: false, interactive: false, pane: "under" },
+    ).addTo(this.map);
+  }
+
   // Photon first; where it fails or doesn't answer in time (some networks can't reach it), OpenStreetMap's
-  // own Nominatim, which then answers the rest of the visit's lookups.
+  // own Nominatim, which then answers the rest of the visit's lookups, and its searches (see search).
   async reverse(point) {
     if (!this.photonDown) {
       try {
@@ -534,6 +556,7 @@ class OsmView {
 
   // Place search through Photon, built on OpenStreetMap data (free, fair use). Arrow keys move
   // through the suggestions, Enter picks one (the first if none is highlighted), Escape closes them.
+  // Where Photon can't be reached, Enter searches Nominatim instead, and a line under the box says so.
   async search(container, placeholder, onPick) {
     const listId = `${container.id}-suggestions`;
     const input = document.createElement("input");
@@ -546,6 +569,9 @@ class OsmView {
     const list = document.createElement("ul");
     Object.assign(list, { id: listId, className: "osm-suggestions", hidden: true });
     list.setAttribute("role", "listbox");
+    const note = document.createElement("p"); // a line under the box, when there's something to say and nothing to suggest
+    note.className = "search-note";
+    note.setAttribute("role", "status");
     let timer = null;
     let results = [];
     let active = -1; // the highlighted suggestion
@@ -570,7 +596,8 @@ class OsmView {
       open(false);
       onPick(place);
     };
-    const show = () => {
+    const show = (message = "") => {
+      note.textContent = results.length ? "" : message;
       list.replaceChildren(
         ...results.map((place, i) => {
           const item = document.createElement("li");
@@ -586,6 +613,30 @@ class OsmView {
       open(results.length > 0);
       highlight(-1);
     };
+    // Photon suggests places as they're typed. Where it can't be reached, Nominatim is asked instead, once,
+    // when Enter is pressed: its terms don't allow asking as each letter is typed. null: nothing to suggest with.
+    const suggest = async (text) => {
+      if (this.photonDown) return null;
+      try {
+        return await photon(text, this.home, this.area);
+      } catch (error) {
+        console.warn("Place search through Photon failed; Enter searches Nominatim:", error);
+        this.photonDown = true;
+        return null;
+      }
+    };
+    const searchNow = async (text) => {
+      show("Searching…");
+      let found = null;
+      try {
+        found = await nominatim(text, this.home, this.area);
+      } catch (error) {
+        console.warn("Place search failed:", error);
+      }
+      if (input.value.trim() !== text) return;
+      results = found || [];
+      show(found ? "No place found by that name." : "The place search didn't answer. Click the map instead.");
+    };
     input.addEventListener("input", () => {
       clearTimeout(timer);
       const text = input.value.trim();
@@ -594,13 +645,10 @@ class OsmView {
         return show();
       }
       timer = setTimeout(async () => {
-        try {
-          results = await photon(text);
-        } catch (error) {
-          console.warn("Place search failed:", error);
-          results = [];
-        }
-        show();
+        const found = await suggest(text);
+        if (input.value.trim() !== text) return; // typed on since: that text's own answer is coming
+        results = found || [];
+        show(found ? "" : "Press Enter to search.");
       }, 300);
     });
     input.addEventListener("keydown", (event) => {
@@ -614,13 +662,17 @@ class OsmView {
       } else if (event.key === "Enter" && results.length) {
         event.preventDefault();
         choose(results[Math.max(active, 0)]);
+      } else if (event.key === "Enter" && this.photonDown && input.value.trim().length >= 3) {
+        event.preventDefault();
+        clearTimeout(timer);
+        searchNow(input.value.trim());
       } else if (event.key === "Escape" && count) {
         event.preventDefault();
         open(false);
       }
     });
     input.addEventListener("blur", () => setTimeout(() => open(false), 150));
-    container.replaceChildren(input, list);
+    container.replaceChildren(input, list, note);
   }
 }
 
@@ -656,12 +708,31 @@ export function loadScript(src) {
   });
 }
 
-async function photon(text) {
-  const params = new URLSearchParams({ q: text, lat: SEARCH_BIAS.lat, lon: SEARCH_BIAS.lng, limit: 5, lang: "en" });
-  const response = await fetch(`${PHOTON}?${params}`);
+// Places near home first; with an area ({ south, west, north, east }), only places inside it.
+async function photon(text, home, area) {
+  const params = new URLSearchParams({ q: text, lat: home.lat, lon: home.lng, limit: 5, lang: "en" });
+  if (area) params.set("bbox", [area.west, area.south, area.east, area.north].join(","));
+  const response = await fetch(`${PHOTON}?${params}`, { signal: AbortSignal.timeout(LOOKUP_TIMEOUT_MS) });
   if (!response.ok) throw new Error(`Photon answered ${response.status}`);
   const { features } = await response.json();
   return features.map(photonPlace);
+}
+
+// One search of Nominatim, for a name typed in full: places near home first, or only those in the area, as Photon's are.
+async function nominatim(text, home, area) {
+  const { lat, lng } = home;
+  const params = new URLSearchParams({
+    q: text,
+    format: "jsonv2",
+    addressdetails: 1,
+    limit: 5,
+    "accept-language": "en",
+    viewbox: area ? [area.west, area.north, area.east, area.south].join(",") : [lng - 1, lat + 1, lng + 1, lat - 1].join(","), // preferred ...
+  });
+  if (area) params.set("bounded", "1"); // ... or, with an area, required
+  const response = await fetch(`${NOMINATIM_SEARCH}?${params}`, { signal: AbortSignal.timeout(LOOKUP_TIMEOUT_MS) });
+  if (!response.ok) throw new Error(`Nominatim answered ${response.status}`);
+  return (await response.json()).filter((place) => place.address).map(nominatimPlace);
 }
 
 // "Fiserv Forum, 1111 N Vel R. Phillips Ave, Milwaukee, Wisconsin" from one of Photon's results.
@@ -677,11 +748,13 @@ function photonPlace({ geometry, properties: p }) {
 }
 
 // A Nominatim answer in the same shape and wording as Photon's: the place's name, the street address, the town.
-function nominatimPlace({ name, address: a }) {
+function nominatimPlace({ name, address: a, lat, lon }) {
   const street = [a.house_number, a.road].filter(Boolean).join(" ");
   const town = a.city || a.town || a.village || a.hamlet || a.suburb;
   const parts = [name, street, town, a.state].filter(Boolean);
   return {
+    lat: Number(lat),
+    lng: Number(lon),
     label: [...new Set(parts)].join(", "),
     countryCode: a.country_code ? a.country_code.toUpperCase() : null,
   };
