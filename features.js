@@ -33,9 +33,9 @@
   // Words used here, in both languages
   const WORDS = {
     en: {
-      plan: 'Plan the route', standard: 'Standard', safemaps: 'SafeMaps', safety: 'safety', slower: 'about 7 min more',
-      mapNote: 'A drawing of one sample trip. Red: risky turns and crash-prone junctions.',
-      close: 'Close', mapLabel: 'A small map: the standard route and the SafeMaps route between A and B',
+      plan: 'Plan the trip', standard: 'Standard', safety: 'safety',
+      mapNote: 'SafeMaps’ recorded answer for this trip, from the demo. Red: risky turns across busy traffic. Orange: lane closures. ✕: railroad crossings. Map © OpenStreetMap contributors.',
+      close: 'Close', mapLabel: 'Map: the SafeMaps route and the standard route from American Family Field to the Harley-Davidson Museum, near the Historic Third Ward',
       chatNote: 'Generated data and scripted answers, like the demo.',
       thinking: ['Spelunking the tickets', 'Asking Cube', 'Counting incidents', 'Sorting by priority', 'Herding tickets'],
       chat: [
@@ -51,9 +51,9 @@
       again: 'Take the piece out again',
     },
     es: {
-      plan: 'Trazar la ruta', standard: 'Estándar', safemaps: 'SafeMaps', safety: 'seguridad', slower: 'unos 7 min más',
-      mapNote: 'Un dibujo de un viaje de ejemplo. En rojo: giros peligrosos y cruces con muchos accidentes.',
-      close: 'Cerrar', mapLabel: 'Un pequeño mapa: la ruta estándar y la de SafeMaps entre A y B',
+      plan: 'Trazar el viaje', standard: 'Estándar', safety: 'seguridad',
+      mapNote: 'La respuesta grabada de SafeMaps para este viaje, de la demo. En rojo: giros peligrosos cruzando tráfico denso. En naranja: carriles cortados. ✕: pasos a nivel. Mapa © colaboradores de OpenStreetMap.',
+      close: 'Cerrar', mapLabel: 'Mapa: la ruta de SafeMaps y la estándar desde el American Family Field hasta el Harley-Davidson Museum, junto al Historic Third Ward',
       chatNote: 'Datos ficticios y respuestas preparadas, como en la demo.',
       thinking: ['Explorando las incidencias', 'Preguntando a Cube', 'Contando incidencias', 'Ordenando por prioridad', 'Reuniendo incidencias'],
       chat: [
@@ -210,26 +210,41 @@
   // ---------------------------------------------------------------
   // CARDS: SafeMaps, inside its card
   // ---------------------------------------------------------------
+  // American Family Field → Harley-Davidson Museum, from SafeMaps' recorded answer in the
+  // demo (safemaps-minimap.js, built by tools/build-minimap.js)
   function safemapsMini() {
     const t = w();
-    const streets = [25, 75, 125].map((y) => `<path class="street" d="M14 ${y} H306"/>`).join('') +
-      [30, 100, 170, 240, 290].map((x) => `<path class="street" d="M${x} 12 V138"/>`).join('');
+    const m = window.SAFEMAPS_MINIMAP;
+    if (!m) return '';
+    const dots = (list, cls) => list.map(([x, y]) =>
+      `<circle class="${cls}-ring" cx="${x}" cy="${y}" r="9"/><circle class="${cls}" cx="${x}" cy="${y}" r="9"/>`).join('');
+    const rail = [...new Set(m.safemaps.rail.map(String))].map((p) => p.split(',').map(Number))
+      .map(([x, y]) => `<path class="rail" d="M${x - 6} ${y - 6}L${x + 6} ${y + 6}M${x + 6} ${y - 6}L${x - 6} ${y + 6}"/>`).join('');
+    const [ax, ay] = m.from.at;
+    const [bx, by] = m.to.at;
+    const leg = (cls, name, r) =>
+      `<span class="leg ${cls}">${esc(name)} · ${esc(r.via)} · ${esc(t.safety)} <b data-to="${r.safety}">0</b> · ${r.minutes} min</span>`;
     return `
       <div class="mini-map">
-        <svg viewBox="0 0 320 150" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${esc(t.mapLabel)}">
-          ${streets}
-          <path class="route standard" pathLength="1" d="M30 125 H170 V25 H290"/>
-          <path class="route safer" pathLength="1" d="M30 125 V75 H100 V25 H290"/>
-          <circle class="risk-ring" cx="170" cy="125" r="6"/><circle class="risk" cx="170" cy="125" r="6"/>
-          <circle class="risk-ring" cx="170" cy="75" r="6"/><circle class="risk" cx="170" cy="75" r="6"/>
-          <circle class="pin" cx="30" cy="125" r="9"/><text class="pin-label" x="30" y="125">A</text>
-          <circle class="pin" cx="290" cy="25" r="9"/><text class="pin-label" x="290" y="25">B</text>
+        <svg viewBox="${m.viewBox}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${esc(t.mapLabel)}">
+          <path class="river" d="${m.rivers}"/>
+          <path class="street" d="${m.roads}"/>
+          <path class="street motorway" d="${m.motorways}"/>
+          <path class="route standard" pathLength="1" d="${m.standard.d}"/>
+          <path class="route safer" pathLength="1" d="${m.safemaps.d}"/>
+          ${rail}
+          ${dots(m.standard.laneClosurePoints, 'merge')}
+          ${dots(m.standard.risky, 'risk')}
+          <circle class="pin" cx="${ax}" cy="${ay}" r="14"/><text class="pin-label" x="${ax}" y="${ay}">A</text>
+          <circle class="pin" cx="${bx}" cy="${by}" r="14"/><text class="pin-label" x="${bx}" y="${by}">B</text>
+          <text class="place" x="${ax - 16}" y="${ay + 52}">${esc(m.from.name)}</text>
+          <text class="place" x="${bx + 24}" y="${by - 30}" text-anchor="end">${esc(m.to.name)}</text>
         </svg>
         <button type="button" class="mini-plan">${esc(t.plan)}</button>
       </div>
       <div class="mini-legend">
-        <span class="leg leg-std">${esc(t.standard)}: <b data-to="26">0</b> ${esc(t.safety)}</span>
-        <span class="leg leg-safe">${esc(t.safemaps)}: <b data-to="100">0</b> ${esc(t.safety)} · ${esc(t.slower)}</span>
+        ${leg('leg-std', t.standard, { ...m.standard, via: 'I-94' })}
+        ${leg('leg-safe', 'SafeMaps', { ...m.safemaps, via: 'Canal St' })}
         <span class="leg-note">${esc(t.mapNote)}</span>
       </div>`;
   }
@@ -336,7 +351,12 @@
   document.addEventListener('portfolio:lang', () => {
     $$('.mini').forEach((mini) => {
       if (mini.hidden) return;
+      const planned = Boolean($('.mini-map.is-planned', mini));
       mini.innerHTML = `<button type="button" class="mini-close" aria-label="${esc(w().close)}">×</button>${MINIS[mini.dataset.kind]()}`;
+      if (planned) { // keep a drawn trip drawn, without playing it again
+        $('.mini-map', mini).classList.add('is-planned');
+        $$('.mini-legend b', mini).forEach((b) => { b.textContent = b.dataset.to; });
+      }
     });
     const verse = $('.guernica-verse.is-shown');
     if (verse) verse.innerHTML = verseHtml();
