@@ -34,6 +34,8 @@ const STRINGS = {
     'about.nvc': 'Creo en la comunicación no violenta: decir lo que veo y lo que necesito sin culpar a nadie, y escuchar con la misma atención lo que necesita la otra persona. En un equipo, discrepar es normal, y a menudo útil, siempre que se hable del trabajo y no de las personas.',
     'about.empathy': 'La empatía guía mi forma de trabajar en equipo. Sé lo que es estar en una sala donde nadie te escucha, así que pregunto antes de dar nada por supuesto, dejo espacio a las voces más calladas e intento entender de dónde viene cada persona antes de decidir adónde vamos. Los equipos en los que la gente se siente segura hacen mejores preguntas, detectan antes los problemas y construyen mejores cosas.',
     'about.quote': 'La tecnología puede ayudarnos a recordar. Hice mi puzle de Guernica para que nunca olvidemos el valor de la acción pacífica y no violenta.',
+    'about.qr': 'Escanea el código para abrir este portafolio en el móvil.',
+    'about.qrAlt': 'Código QR que abre este portafolio',
 
     'skills.title': 'Con qué trabajo',
     'skills.build': 'Construyo con',
@@ -143,6 +145,10 @@ function setLanguage(lang, byVisitor = false) {
     const label = STRINGS[lang][el.dataset.i18nLabel];
     if (label) el.setAttribute('aria-label', label);
   });
+  document.querySelectorAll('[data-i18n-alt]').forEach((el) => {
+    const alt = STRINGS[lang][el.dataset.i18nAlt];
+    if (alt) el.alt = alt;
+  });
   // Plain text: set as text so nothing is parsed as HTML.
   document.querySelectorAll('[data-i18n]').forEach((el) => {
     const text = STRINGS[lang][el.dataset.i18n];
@@ -179,6 +185,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.querySelectorAll('[data-i18n-label]').forEach((el) => {
     STRINGS.en[el.dataset.i18nLabel] = el.getAttribute('aria-label');
+  });
+  document.querySelectorAll('[data-i18n-alt]').forEach((el) => {
+    STRINGS.en[el.dataset.i18nAlt] = el.alt;
   });
 
   document.querySelectorAll('.lang-toggle button').forEach((btn) => {

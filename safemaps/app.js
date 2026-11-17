@@ -181,6 +181,7 @@ function wireControls() {
   $("closures-layer").addEventListener("change", drawClosures);
   $("about-open").addEventListener("click", showAbout);
   $("phone-open").addEventListener("click", showPhoneLink);
+  $("me-open").addEventListener("click", () => $("me").showModal());
   $("add-stop").addEventListener("click", () => addStop());
   // The map key starts folded on a phone, where it would cover much of the map.
   if (window.matchMedia(NARROW).matches) $("legend").open = false;

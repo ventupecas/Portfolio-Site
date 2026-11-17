@@ -6,6 +6,8 @@
 
 ## About me
 
+<img src="images/qr-portfolio.png" width="140" align="right" alt="QR code that opens my portfolio">
+
 I was born and raised in Madrid, Spain, and moved to West Orange, New Jersey, right before my 10th birthday without knowing a word of English. Since then, life has taken me to Miami and now Milwaukee, and each move taught me to adapt quickly and effectively to an entirely new environment. I carry that adaptability everywhere I go: I keep pushing myself to improve, personally and professionally, and to lift up the communities around me.
 
 I'm driven by a strong work ethic and a natural curiosity. I consider myself a sponge: I'm always absorbing knowledge from my surroundings and learning from the people I work with.
