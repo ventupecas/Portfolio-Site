@@ -216,7 +216,7 @@ function page(slug, d) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${d.title} — Case study — Ventura Perez Del Castillo</title>
+  <title>${d.title} — Case study — Ventura Perez</title>
   <meta name="description" content="${escAttr(d.description)}" />
   <meta name="theme-color" content="#2e2c55" />
 
@@ -298,7 +298,7 @@ ${sections}
   </main>
 
   <footer class="footer">
-    <p><span data-i18n="footer.text">Designed and built by hand, one commit at a time.</span> &copy; 2026 Ventura Perez Del Castillo.</p>
+    <p><span data-i18n="footer.text">Designed and built by hand, one commit at a time.</span> &copy; 2026 Ventura Perez.</p>
     <p class="footer-tools">
       <button type="button" class="rebuild view-source-btn" data-snippet="source" data-i18n="footer.source" aria-pressed="false" hidden>&lt;/&gt; View the source</button>
     </p>

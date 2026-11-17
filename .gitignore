@@ -8,7 +8,7 @@ git ignore
   <!-- REPLACE: This shows in the browser tab -->
    <link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="manifest" href="/site.webmanifest">
-  <title>Ventura Perez Del Castillo — Portfolio</title>
+  <title>Ventura Perez — Portfolio</title>
 
   <!-- This links your styles.css file to this page -->
   <link rel="stylesheet" href="styles.css" />

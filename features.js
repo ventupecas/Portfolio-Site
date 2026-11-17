@@ -466,7 +466,7 @@
     en: {
       placeholder: 'Type a command, or help', foot: '↑↓ to pick · Enter to run · Esc to close', label: 'Command palette',
       notFound: (c) => `command not found: ${c}. Try help.`,
-      help: 'Commands: ', whoami: 'Ventura Perez Del Castillo · business analyst, QA and web developer · Milwaukee area · builds tools in English and Spanish.',
+      help: 'Commands: ', whoami: 'Ventura Perez · business analyst, QA and web developer · Milwaukee area · builds tools in English and Spanish.',
       sudo: '[sudo] password for recruiter: ********\n✓ Permission granted. Opening an email…', subject: 'Let\'s talk about a role',
       theme: (dark) => `Theme: ${dark ? 'dark' : 'light'}.`, source: (on) => `View source: ${on ? 'on' : 'off'}.`,
       hola: '¡Hola! Ahora en español.', hello: 'Hello! Back to English.',
@@ -482,7 +482,7 @@
     es: {
       placeholder: 'Escribe un comando, o help', foot: '↑↓ para elegir · Intro para ejecutar · Esc para cerrar', label: 'Paleta de comandos',
       notFound: (c) => `no existe el comando: ${c}. Prueba con help.`,
-      help: 'Comandos: ', whoami: 'Ventura Perez Del Castillo · análisis de negocio, control de calidad y desarrollo web · zona de Milwaukee · construye herramientas en inglés y en español.',
+      help: 'Comandos: ', whoami: 'Ventura Perez · análisis de negocio, control de calidad y desarrollo web · zona de Milwaukee · construye herramientas en inglés y en español.',
       sudo: '[sudo] contraseña para recruiter: ********\n✓ Permiso concedido. Abriendo un correo…', subject: 'Hablemos de un puesto',
       theme: (dark) => `Tema: ${dark ? 'oscuro' : 'claro'}.`, source: (on) => `Ver el código: ${on ? 'activado' : 'desactivado'}.`,
       hola: '¡Hola! Ahora en español.', hello: 'Hello! Back to English.',
