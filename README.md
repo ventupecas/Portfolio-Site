@@ -1,4 +1,4 @@
-# Ventura Perez Del Castillo
+# Ventura Perez
 
 **Business analyst · QA · Web developer** · Milwaukee area · English and Spanish
 
