@@ -93,7 +93,7 @@
         ['<nav class="navbar">'],
         ['  <a class="nav-logo" href="#top">VP Ventura Perez</a>', show('.nav-logo')],
         [`  <a href="#about">${nav[0]}</a> <a href="#projects">${nav[1]}</a> …`, show('.nav-links')],
-        ['  <button data-lang="es">ES</button>', show('.lang-toggle')],
+        ['  <button data-lang="es">ES</button>', show('.nav-tools')],
         ['</nav>'],
         ['<header class="hero">'],
         [`  <p class="eyebrow">${text('.eyebrow')}</p>`, show('.eyebrow')],
@@ -279,7 +279,21 @@
     github: () => ({ file: 'terminal', lang: 'sh', code: '$ git clone https://github.com/vperez-stars/Portfolio-Site.git' }),
     linkedin: (el) => ({ file: 'index.html', lang: 'js', code: `window.open('${el.getAttribute('href')}', '_blank', 'noopener');` }),
     rebuild: () => ({ file: 'build.js', lang: 'js', code: 'build(); // types this page\'s code again, one line at a time' }),
+    case: (el) => ({ file: 'index.html', lang: 'html', code: `<a href="${el.getAttribute('href')}">${el.textContent.trim()}</a>` }),
+    palette: () => ({
+      file: 'features.js', lang: 'js',
+      code: "addEventListener('keydown', (e) => {\n  if (e.key === '/' || ((e.ctrlKey || e.metaKey) && e.key === 'k')) openPalette();\n});",
+    }),
+    theme: () => ({
+      file: 'features.js', lang: 'js',
+      code: "root.dataset.theme = dark ? 'dark' : 'light';\nlocalStorage.setItem('portfolio-theme', root.dataset.theme);\n// styles.css: :root[data-theme=\"dark\"] { --color-bg: #121120; … }",
+    }),
+    source: () => ({
+      file: 'features.js', lang: 'js',
+      code: "root.classList.toggle('view-source');\n// each part is labeled with the tag that makes it\ntag.textContent = el.cloneNode(false).outerHTML.replace(/<\\/[\\w-]+>$/, '');",
+    }),
   };
+  window.portfolioHighlight = highlight;
 
   const peek = document.createElement('div');
   peek.className = 'peek';

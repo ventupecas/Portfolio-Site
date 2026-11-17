@@ -105,14 +105,40 @@ const STRINGS = {
     'contact.email': 'Escríbeme',
 
     'footer.text': 'Diseñado y programado a mano, cambio a cambio.',
-    'footer.rebuild': '↻ Ver cómo se construye esta página'
+    'footer.rebuild': '↻ Ver cómo se construye esta página',
+    'footer.source': '</> Ver el código fuente',
+    'footer.hint': 'Truco: pulsa / para abrir la paleta de comandos.',
+
+    // Labels read by screen readers (data-i18n-label sets aria-label)
+    'nav.palette': 'Abrir la paleta de comandos',
+    'nav.theme': 'Tema oscuro',
+    'guernica.piece': 'Colocar la última pieza en su sitio',
+
+    'stats.vs': 'frente a',
+    'stats.sales': 'la media del sector en ventas, en Park Business Capital',
+    'stats.safety': 'puntuación media de seguridad de SafeMaps frente a las rutas estándar, en veinte viajes por Milwaukee',
+    'stats.pieces': 'piezas de puzle, y cada una desvela un capítulo de la historia',
+    'stats.languages': 'idiomas en los que construyo: inglés y español',
+
+    'try.here': '▶ Pruébalo aquí',
+    'try.ask': '▶ Hazle una pregunta',
+    'link.case': 'Leer el estudio de caso',
+    'guernica.hint': 'Arrastra la última pieza a su sitio',
+    'exp.here': 'Estás aquí',
+    'exp.start': 'Inicio de la ruta: Miami Beach, 2022'
   }
 };
 
 const STORAGE_KEY = 'portfolio-lang';
 
-function setLanguage(lang) {
+// byVisitor: true when someone pressed EN/ES (features.js then flips the headings).
+function setLanguage(lang, byVisitor = false) {
   if (!STRINGS[lang]) lang = 'en';
+  // Labels for screen readers (buttons with only an icon)
+  document.querySelectorAll('[data-i18n-label]').forEach((el) => {
+    const label = STRINGS[lang][el.dataset.i18nLabel];
+    if (label) el.setAttribute('aria-label', label);
+  });
   // Plain text: set as text so nothing is parsed as HTML.
   document.querySelectorAll('[data-i18n]').forEach((el) => {
     const text = STRINGS[lang][el.dataset.i18n];
@@ -128,6 +154,7 @@ function setLanguage(lang) {
     btn.setAttribute('aria-pressed', String(btn.dataset.lang === lang));
   });
   try { localStorage.setItem(STORAGE_KEY, lang); } catch (e) { /* storage blocked: the choice just isn't remembered */ }
+  document.dispatchEvent(new CustomEvent('portfolio:lang', { detail: { lang, byVisitor } }));
 }
 
 function startingLanguage() {
@@ -146,9 +173,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('[data-i18n-html]').forEach((el) => {
     STRINGS.en[el.dataset.i18nHtml] = el.innerHTML;
   });
+  document.querySelectorAll('[data-i18n-label]').forEach((el) => {
+    STRINGS.en[el.dataset.i18nLabel] = el.getAttribute('aria-label');
+  });
 
   document.querySelectorAll('.lang-toggle button').forEach((btn) => {
-    btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
+    btn.addEventListener('click', () => setLanguage(btn.dataset.lang, true));
   });
 
   const lang = startingLanguage();
