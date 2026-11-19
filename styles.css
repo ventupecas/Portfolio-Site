@@ -816,7 +816,7 @@ html.view-source .navbar { outline: 1px dashed rgba(170, 166, 255, .75); outline
 .case h2 { font-size: clamp(1.35rem, 3vw, 1.6rem); margin: 0 0 .85rem; }
 .case section + section { margin-top: 3rem; }
 .case h2::after { content: ""; display: block; width: 2.5rem; height: 4px; border-radius: 4px; margin-top: .5rem; background: linear-gradient(90deg, var(--color-accent), var(--color-spark)); }
-.case p + p { margin-top: .9rem; }
+.case p + p, .case p + ul:not(.case-results), .case p + ol { margin-top: .9rem; }
 .case ol, .case ul:not(.case-results) { padding-left: 1.3rem; }
 .case li + li { margin-top: .5rem; }
 .case li::marker { color: var(--color-accent); font-weight: 700; }

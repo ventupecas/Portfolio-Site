@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OneTouch — Case study — Ventura Perez</title>
-  <meta name="description" content="Case study: OneTouch, an IT ticket workspace where you ask questions in plain English, build dashboards and see which work needs attention first." />
+  <meta name="description" content="Case study: OneTouch, an IT ticket workspace where you ask questions in plain English, build dashboards and see which work needs attention first, and how I kept it live with Docker, a guarded failover and monitoring." />
   <meta name="theme-color" content="#2e2c55" />
 
   <link rel="icon" href="../favicon.ico" sizes="any" />
@@ -65,7 +65,7 @@
       <h1>OneTouch</h1>
       <p class="lead" data-i18n="ot.lead">An IT ticket workspace: ask about ServiceNow tickets in plain English, get the answer as a table or a chart, and see which work needs attention first.</p>
       <ul class="tags">
-        <li>JavaScript</li><li>Node.js</li><li>Claude API</li><li>PostgreSQL</li><li>Cube</li><li>Metabase</li><li>Three.js</li><li>Docker</li>
+        <li>JavaScript</li><li>Node.js</li><li>Claude API</li><li>PostgreSQL</li><li>Cube</li><li>Metabase</li><li>Three.js</li><li>Docker</li><li>Cloudflare Tunnel</li><li>GitHub Actions</li><li>PowerShell</li>
       </ul>
       <div class="hero-actions">
         <a href="../onetouch/" target="_blank" rel="noopener noreferrer" class="button" data-snippet="onetouch" data-i18n="link.demo">Try the demo</a>
@@ -105,6 +105,28 @@
       <section>
         <h2 data-i18n="ot.hard">The hard part: keeping the documentation true</h2>
         <p class="case-callout" data-i18n="ot.hard1">The README explains every feature, how to run it and how to rebuild it from scratch, with every file printed in full. A check fails as soon as the README no longer matches the code, so it can’t go stale without anyone noticing.</p>
+      </section>
+
+      <section id="ops">
+        <h2 data-i18n="ot.ops">Keeping it live: DevOps and reliability</h2>
+        <p data-i18n="ot.ops.intro">OneTouch had to stay up for a live presentation to an enterprise client, served from home hardware with no cloud budget. I took it from “runs on my laptop” to a monitored, publicly hosted service with a rehearsed failover plan.</p>
+        <ul>
+          <li data-i18n="ot.ops1">Containerized five services (the Node.js app, PostgreSQL, Cube, Metabase and a Cloudflare Tunnel) with Docker Compose. The site is public on a custom domain with no inbound ports open, and every service listens only on localhost.</li>
+          <li data-i18n="ot.ops2">Migrated production from a laptop to a dedicated host. I backed up the database and dashboard volumes and restored them before the first start, because a first start on empty volumes would have rebuilt the database and lost everyone’s assignments.</li>
+          <li data-i18n="ot.ops3">Built active/standby failover with a split-brain guard. Both machines share one tunnel token, so if both served, Cloudflare would split visitors between two databases. A PowerShell watchdog reads Cloudflare’s status (530 means no tunnel is connected) and a host-identity header on every response, so only one machine ever serves.</li>
+          <li data-i18n="ot.ops4">The standby takes over with one command, but only after the site has had no connector for a full minute: longer than the 30 seconds after which the primary drops its own tunnel when it loses internet, so a brief blip can’t lead to two tunnels.</li>
+          <li data-i18n="ot.ops5">It recovers on its own. Auto sign-in, Docker restart policies and the watchdog bring the whole site back after a reboot or a power cut, and the watchdog restarts the tunnel if it dies.</li>
+          <li data-i18n="ot.ops6">An external uptime check watches the public URL, because a machine without power can’t report itself. The watchdog also sends phone alerts when the tunnel won’t start, another host is serving, the internet drops or the app keeps failing.</li>
+          <li data-i18n="ot.ops7">GitHub Actions runs build checks, unit tests, a dependency audit and a smoke test against the live site. I rotated secrets that had been committed to git history, gave Cube a read-only database role, and added security headers (CSP, HSTS).</li>
+        </ul>
+        <p class="case-callout" data-i18n="ot.ops.drill">Rehearsed end to end: I cut the primary’s power at the wall and the standby took over. When the primary came back, it kept its tunnel off because the standby was serving. Once the standby let go, the primary was serving again about 15 seconds after it noticed.</p>
+        <ul class="case-results">
+          <li><b>5</b><span data-i18n="ot.ops.r1">services in one Docker Compose stack, with no inbound ports open</span></li>
+          <li><b>18 s</b><span data-i18n="ot.ops.r2">from the tunnel dying to serving again, with no one touching it</span></li>
+          <li><b data-i18n="ot.ops.r3.n">~1.5 min</b><span data-i18n="ot.ops.r3">to come back after a reboot or power cut, with no one at the machine</span></li>
+          <li><b>~1 min</b><span data-i18n="ot.ops.r4">of downtime to move hosts, with every table’s row count matching</span></li>
+        </ul>
+        <p class="case-note" data-i18n="ot.ops.ai">How I worked: I set the goals and constraints, made the decisions, and directed AI coding tools through the implementation. I ran and verified every rehearsal myself.</p>
       </section>
 
       <section>

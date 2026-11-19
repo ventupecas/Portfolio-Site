@@ -43,7 +43,8 @@ Ask questions about ServiceNow tickets in plain English and get the answer as a 
 - Claude turns each question into a structured query. OneTouch checks it, and Cube runs it over PostgreSQL. The AI never touches the database directly.
 - Answers download in **8 formats**. There are **10 ITIL dashboards**, and a 2D/3D map of the system's own architecture with live health checks.
 - Built to survive a live presentation: saved answers and an offline switch keep it working if the internet fails.
-- JavaScript, Node.js, Claude API, PostgreSQL, Cube, Metabase, Three.js, Docker
+- **Kept it live:** five services in Docker Compose, served through Cloudflare Tunnel with no inbound ports open; a host migration with every table's row count matching and about 1 minute of downtime; a guarded active/standby failover (a PowerShell watchdog makes sure only one host ever serves), rehearsed with a real power cut; recovery on its own in 18 s from a tunnel failure and about 1.5 min from a reboot; external uptime checks and phone alerts. I set the goals and made the decisions, and directed AI coding tools through the implementation. [How I kept it live](https://vperez-stars.github.io/Portfolio-Site/work/onetouch.html#ops)
+- JavaScript, Node.js, Claude API, PostgreSQL, Cube, Metabase, Three.js, Docker, Cloudflare Tunnel, GitHub Actions, PowerShell
 
 [Try the demo](https://vperez-stars.github.io/Portfolio-Site/onetouch/) (generated data) · [Case study](https://vperez-stars.github.io/Portfolio-Site/work/onetouch.html)
 
@@ -62,6 +63,7 @@ An 18-piece jigsaw of Picasso's *Guernica*. Every piece you place unlocks a chap
 
 **Business Analyst, Quality Assurance** · i.c.stars, Milwaukee, WI · Aug – Dec 2026
 - Build web apps for real client projects, combining programming, business analysis and leadership.
+- Took a client project's 5-service analytics platform from a laptop to a monitored public service: Docker Compose, Cloudflare Tunnel, a PowerShell failover watchdog, GitHub Actions CI and phone alerts.
 - Present solutions to rooms of clients and lead the Q&A on the technical approach and the business value.
 - Deliver projects in Agile and Waterfall, tracking work in Jira and GitHub.
 
@@ -83,6 +85,7 @@ An 18-piece jigsaw of Picasso's *Guernica*. Every piece you place unlocks a chap
 | | |
 |---|---|
 | **Build with** | JavaScript, HTML, CSS, Python, Rust, SQL, React, Node.js, Anthropic API and AI tools, Git and GitHub |
+| **Run and ship** | Docker and Docker Compose, Cloudflare Tunnel, GitHub Actions (CI), PowerShell, monitoring and alerting, runbooks and failover drills |
 | **Analyze and test** | Business analysis, data analysis, quality assurance, Microsoft 365 and Excel |
 | **How I work** | Agile, Waterfall, Jira, project management, client presentations, team collaboration |
 | **Sales and clients** | Sales, customer service, business relations, marketing, Salesforce, KickSite |

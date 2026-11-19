@@ -74,8 +74,8 @@ const PAGES = {
 
   onetouch: {
     title: 'OneTouch', next: ['guernica', 'Guernica'],
-    description: 'Case study: OneTouch, an IT ticket workspace where you ask questions in plain English, build dashboards and see which work needs attention first.',
-    tags: ['JavaScript', 'Node.js', 'Claude API', 'PostgreSQL', 'Cube', 'Metabase', 'Three.js', 'Docker'],
+    description: 'Case study: OneTouch, an IT ticket workspace where you ask questions in plain English, build dashboards and see which work needs attention first, and how I kept it live with Docker, a guarded failover and monitoring.',
+    tags: ['JavaScript', 'Node.js', 'Claude API', 'PostgreSQL', 'Cube', 'Metabase', 'Three.js', 'Docker', 'Cloudflare Tunnel', 'GitHub Actions', 'PowerShell'],
     demo: ['../onetouch/', 'link.demo', 'Try the demo', 'onetouch'],
     lead: ['ot.lead', 'An IT ticket workspace: ask about ServiceNow tickets in plain English, get the answer as a table or a chart, and see which work needs attention first.',
       'Un espacio de trabajo para el soporte informático: pregunta por los tiques de ServiceNow en lenguaje natural, recibe la respuesta en una tabla o un gráfico y comprueba qué trabajo necesita atención primero.'],
@@ -107,6 +107,36 @@ const PAGES = {
       { h: ['ot.hard', 'The hard part: keeping the documentation true', 'La parte difícil: que la documentación diga la verdad'], callout: [['ot.hard1',
         'The README explains every feature, how to run it and how to rebuild it from scratch, with every file printed in full. A check fails as soon as the README no longer matches the code, so it can’t go stale without anyone noticing.',
         'El README explica cada función, cómo ponerlo en marcha y cómo reconstruirlo desde cero, con cada archivo impreso entero. Una comprobación falla en cuanto el README deja de coincidir con el código, así que no puede quedarse anticuado sin que nadie lo note.']] },
+      { id: 'ops', h: ['ot.ops', 'Keeping it live: DevOps and reliability', 'Mantenerlo en marcha: DevOps y fiabilidad'],
+        p: [['ot.ops.intro', 'OneTouch had to stay up for a live presentation to an enterprise client, served from home hardware with no cloud budget. I took it from “runs on my laptop” to a monitored, publicly hosted service with a rehearsed failover plan.',
+          'OneTouch tenía que seguir en pie durante una presentación en directo para un cliente empresarial, servido desde equipos domésticos y sin presupuesto para la nube. Lo llevé de «funciona en mi portátil» a un servicio público, vigilado y con un plan de conmutación ensayado.']],
+        ul: [
+          ['ot.ops1', 'Containerized five services (the Node.js app, PostgreSQL, Cube, Metabase and a Cloudflare Tunnel) with Docker Compose. The site is public on a custom domain with no inbound ports open, and every service listens only on localhost.',
+            'Empaqueté en contenedores cinco servicios (la aplicación en Node.js, PostgreSQL, Cube, Metabase y un túnel de Cloudflare) con Docker Compose. El sitio es público en un dominio propio sin ningún puerto de entrada abierto, y cada servicio escucha solo en localhost.'],
+          ['ot.ops2', 'Migrated production from a laptop to a dedicated host. I backed up the database and dashboard volumes and restored them before the first start, because a first start on empty volumes would have rebuilt the database and lost everyone’s assignments.',
+            'Migré producción de un portátil a un equipo dedicado. Hice una copia de seguridad de los volúmenes de la base de datos y de los paneles y los restauré antes del primer arranque, porque un primer arranque con los volúmenes vacíos habría reconstruido la base de datos y borrado las asignaciones de todos.'],
+          ['ot.ops3', 'Built active/standby failover with a split-brain guard. Both machines share one tunnel token, so if both served, Cloudflare would split visitors between two databases. A PowerShell watchdog reads Cloudflare’s status (530 means no tunnel is connected) and a host-identity header on every response, so only one machine ever serves.',
+            'Monté una conmutación activo/en espera con protección contra el cerebro dividido. Las dos máquinas comparten el token del túnel, así que, si sirvieran las dos a la vez, Cloudflare repartiría a los visitantes entre dos bases de datos distintas. Un vigilante en PowerShell lee el estado de Cloudflare (530 significa que no hay ningún túnel conectado) y una cabecera que identifica a la máquina en cada respuesta, para que nunca sirva más de una.'],
+          ['ot.ops4', 'The standby takes over with one command, but only after the site has had no connector for a full minute: longer than the 30 seconds after which the primary drops its own tunnel when it loses internet, so a brief blip can’t lead to two tunnels.',
+            'La máquina en espera toma el relevo con una sola orden, pero solo cuando el sitio lleva un minuto entero sin conector: más que los 30 segundos tras los que la principal cierra su propio túnel si pierde internet, para que un corte breve no acabe en dos túneles.'],
+          ['ot.ops5', 'It recovers on its own. Auto sign-in, Docker restart policies and the watchdog bring the whole site back after a reboot or a power cut, and the watchdog restarts the tunnel if it dies.',
+            'Se recupera solo. El inicio de sesión automático, las políticas de reinicio de Docker y el vigilante levantan todo el sitio tras un reinicio o un apagón, y el vigilante vuelve a arrancar el túnel si se cae.'],
+          ['ot.ops6', 'An external uptime check watches the public URL, because a machine without power can’t report itself. The watchdog also sends phone alerts when the tunnel won’t start, another host is serving, the internet drops or the app keeps failing.',
+            'Una comprobación externa vigila la dirección pública, porque una máquina sin corriente no puede avisar de nada. El vigilante, además, envía avisos al móvil cuando el túnel no arranca, otra máquina está sirviendo, se va internet o la aplicación sigue fallando.'],
+          ['ot.ops7', 'GitHub Actions runs build checks, unit tests, a dependency audit and a smoke test against the live site. I rotated secrets that had been committed to git history, gave Cube a read-only database role, and added security headers (CSP, HSTS).',
+            'GitHub Actions ejecuta comprobaciones de compilación, pruebas unitarias, una auditoría de dependencias y una prueba de humo contra el sitio en producción. Cambié los secretos que habían quedado en el historial de git, di a Cube un rol de solo lectura en la base de datos y añadí cabeceras de seguridad (CSP, HSTS).'],
+        ],
+        callout: [['ot.ops.drill', 'Rehearsed end to end: I cut the primary’s power at the wall and the standby took over. When the primary came back, it kept its tunnel off because the standby was serving. Once the standby let go, the primary was serving again about 15 seconds after it noticed.',
+          'Lo ensayé de principio a fin: corté la corriente de la máquina principal en el enchufe y la de reserva tomó el relevo. Cuando la principal volvió, mantuvo su túnel apagado porque la otra estaba sirviendo. En cuanto la de reserva lo soltó, la principal volvió a servir unos 15 segundos después de notarlo.']],
+        results: [
+        ['5', 'ot.ops.r1', 'services in one Docker Compose stack, with no inbound ports open', 'servicios en un solo despliegue de Docker Compose, sin puertos de entrada abiertos'],
+        ['18 s', 'ot.ops.r2', 'from the tunnel dying to serving again, with no one touching it', 'desde que se cae el túnel hasta que vuelve a servir, sin que nadie lo toque'],
+        [['~1.5 min', '~1,5 min'], 'ot.ops.r3', 'to come back after a reboot or power cut, with no one at the machine', 'para volver tras un reinicio o un apagón, sin nadie delante de la máquina'],
+        ['~1 min', 'ot.ops.r4', 'of downtime to move hosts, with every table’s row count matching', 'sin servicio al cambiar de equipo, con el recuento de filas de cada tabla idéntico'],
+      ], notes: [
+        ['ot.ops.ai', 'How I worked: I set the goals and constraints, made the decisions, and directed AI coding tools through the implementation. I ran and verified every rehearsal myself.',
+          'Cómo trabajé: fijé los objetivos y las restricciones, tomé las decisiones y dirigí la implementación con herramientas de programación con IA. Cada ensayo lo ejecuté y lo verifiqué yo.'],
+      ] },
       { h: 'cs.numbers', results: [
         ['8', 'ot.r1', 'download formats for every answer', 'formatos de descarga para cada respuesta'],
         ['10', 'ot.r2', 'ITIL dashboards', 'paneles de ITIL'],
@@ -205,7 +235,9 @@ function page(slug, d) {
       }).join('\n          ')}\n        </ul>`;
       if (s.notes) body += '\n        ' + s.notes.map((x) => t('p', x, 'case-note')).join('\n        ');
     }
-    return `      <section>\n        ${heading(s.h)}\n        ${body}\n      </section>`;
+    // A section can mix kinds (a paragraph, then a list, then a callout): one per line
+    body = body.replace(/(<\/p>|<\/ol>|<\/ul>)(?=<(p|ol|ul)[ >])/g, '$1\n        ');
+    return `      <section${s.id ? ` id="${s.id}"` : ''}>\n        ${heading(s.h)}\n        ${body}\n      </section>`;
   }).join('\n\n');
 
   const titleH1 = d.titleKey ? `<h1 data-i18n="${d.titleKey}">${d.title}</h1>` : `<h1>${d.title}</h1>`;
