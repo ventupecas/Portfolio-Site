@@ -153,7 +153,7 @@ const PAGES = {
     title: 'In Memory of Guernica', titleKey: 'guernica.title', next: ['safemaps', 'SafeMaps'],
     description: 'Case study: a bilingual 18-piece jigsaw of Picasso’s Guernica for a tech-expo booth, where every piece unlocks a chapter of the Spanish Civil War.',
     tags: ['JavaScript', 'Canvas', 'Pointer Events', 'Web Audio'],
-    demo: ['https://vperez-stars.github.io/Guernica/', 'link.puzzle', 'Play the puzzle', 'guernica'],
+    demo: ['https://ventupecas.github.io/Guernica/', 'link.puzzle', 'Play the puzzle', 'guernica'],
     lead: ['gu.lead.html', 'An 18-piece jigsaw of Picasso’s <i>Guernica</i> for a tech-expo booth. Every piece you place reveals a chapter of the Spanish Civil War and its poets, in Spanish and English.',
       'Un puzle de dieciocho piezas del <i>Guernica</i> de Picasso para el estand de una feria de tecnología. Cada pieza que colocas desvela un capítulo de la guerra civil española y de sus poetas, en español y en inglés.'],
     sections: [
