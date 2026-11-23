@@ -2,7 +2,7 @@
 
 **Business analyst · QA · Web developer** · Milwaukee area · English and Spanish
 
-[Portfolio](https://vperez-stars.github.io/Portfolio-Site/) · [Email](mailto:vperez@icstars.org) · [LinkedIn](https://www.linkedin.com/in/ventura-perez/) · [GitHub](https://github.com/vperez-stars)
+[Portfolio](https://ventupecas.github.io/Portfolio-Site/) · [Email](mailto:vperez@icstars.org) · [LinkedIn](https://www.linkedin.com/in/ventura-perez/) · [GitHub](https://github.com/ventupecas)
 
 ## About me
 
@@ -35,7 +35,7 @@ Most map apps pick the fastest route. SafeMaps picks the safest one, then the on
 - **331 automated tests** run on every push, including browser tests that click, drag and undo on the map.
 - Python, FastAPI, Rust, JavaScript, Leaflet, MapLibre, Three.js
 
-[Try the demo](https://vperez-stars.github.io/Portfolio-Site/safemaps/) · [Case study](https://vperez-stars.github.io/Portfolio-Site/work/safemaps.html)
+[Try the demo](https://ventupecas.github.io/Portfolio-Site/safemaps/) · [Case study](https://ventupecas.github.io/Portfolio-Site/work/safemaps.html)
 
 ### OneTouch: an IT ticket workspace with an AI assistant
 Ask questions about ServiceNow tickets in plain English and get the answer as a table or a chart. Build your own dashboards, and see which work needs attention first. Built for a real IT team.
@@ -43,10 +43,10 @@ Ask questions about ServiceNow tickets in plain English and get the answer as a 
 - Claude turns each question into a structured query. OneTouch checks it, and Cube runs it over PostgreSQL. The AI never touches the database directly.
 - Answers download in **8 formats**. There are **10 ITIL dashboards**, and a 2D/3D map of the system's own architecture with live health checks.
 - Built to survive a live presentation: saved answers and an offline switch keep it working if the internet fails.
-- **Kept it live:** five services in Docker Compose, served through Cloudflare Tunnel with no inbound ports open; a host migration with every table's row count matching and about 1 minute of downtime; a guarded active/standby failover (a PowerShell watchdog makes sure only one host ever serves), rehearsed with a real power cut; recovery on its own in 18 s from a tunnel failure and about 1.5 min from a reboot; external uptime checks and phone alerts. I set the goals and made the decisions, and directed AI coding tools through the implementation. [How I kept it live](https://vperez-stars.github.io/Portfolio-Site/work/onetouch.html#ops)
+- **Kept it live:** five services in Docker Compose, served through Cloudflare Tunnel with no inbound ports open; a host migration with every table's row count matching and about 1 minute of downtime; a guarded active/standby failover (a PowerShell watchdog makes sure only one host ever serves), rehearsed with a real power cut; recovery on its own in 18 s from a tunnel failure and about 1.5 min from a reboot; external uptime checks and phone alerts. I set the goals and made the decisions, and directed AI coding tools through the implementation. [How I kept it live](https://ventupecas.github.io/Portfolio-Site/work/onetouch.html#ops)
 - JavaScript, Node.js, Claude API, PostgreSQL, Cube, Metabase, Three.js, Docker, Cloudflare Tunnel, GitHub Actions, PowerShell
 
-[Try the demo](https://vperez-stars.github.io/Portfolio-Site/onetouch/) (generated data) · [Case study](https://vperez-stars.github.io/Portfolio-Site/work/onetouch.html)
+[Try the demo](https://ventupecas.github.io/Portfolio-Site/onetouch/) (generated data) · [Case study](https://ventupecas.github.io/Portfolio-Site/work/onetouch.html)
 
 ### In Memory of Guernica: a bilingual puzzle for a tech expo
 An 18-piece jigsaw of Picasso's *Guernica*. Every piece you place unlocks a chapter of the Spanish Civil War and its poets, in Spanish and English. I built it as a reminder of the value of peaceful, non-violent action.
@@ -55,7 +55,7 @@ An 18-piece jigsaw of Picasso's *Guernica*. Every piece you place unlocks a chap
 - The Spanish was checked against the Real Academia Española, and every poem excerpt word for word against a published edition.
 - JavaScript, Canvas, Pointer Events, Web Audio
 
-[Play the puzzle](https://vperez-stars.github.io/Guernica/) · [Case study](https://vperez-stars.github.io/Portfolio-Site/work/guernica.html)
+[Play the puzzle](https://ventupecas.github.io/Guernica/) · [Case study](https://ventupecas.github.io/Portfolio-Site/work/guernica.html)
 
 ---
 

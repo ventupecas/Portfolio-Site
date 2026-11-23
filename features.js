@@ -95,7 +95,7 @@
   // ---------------------------------------------------------------
   console.log('%c VP ', 'font: 900 28px Georgia, serif; color: #fff; background: #2e2c55; border-radius: 8px; padding: 4px 8px;');
   console.log('%c¡Hola! You opened the console, so you\'re my kind of person.\n' +
-    'This site is plain HTML, CSS and JavaScript, no framework. The code: https://github.com/vperez-stars/Portfolio-Site\n' +
+    'This site is plain HTML, CSS and JavaScript, no framework. The code: https://github.com/ventupecas/Portfolio-Site\n' +
     'Press / on the page for a command line, or say hi: vperez@icstars.org',
     'font: 14px/1.5 system-ui, sans-serif; color: #6b67d6;');
 
@@ -518,7 +518,7 @@
     help: (say) => say(p().help + Object.keys(COMMANDS).join(', '), 'ok', true),
     about: () => go('#about'), projects: () => go('#projects'), experience: () => go('#experience'), contact: () => go('#contact'),
     safemaps: () => open(`${home}safemaps/`), onetouch: () => open(`${home}onetouch/`),
-    guernica: () => open('https://vperez-stars.github.io/Guernica/'),
+    guernica: () => open('https://ventupecas.github.io/Guernica/'),
     'case safemaps': () => { location.href = `${home}work/safemaps.html`; },
     'case onetouch': () => { location.href = `${home}work/onetouch.html`; },
     'case guernica': () => { location.href = `${home}work/guernica.html`; },
@@ -529,7 +529,7 @@
     source: (say) => { toggleSource(); return say(p().source(root.classList.contains('view-source')), 'ok', true); },
     whoami: (say) => say(p().whoami, 'ok', true),
     email: () => { location.href = 'mailto:vperez@icstars.org'; },
-    github: () => open('https://github.com/vperez-stars'),
+    github: () => open('https://github.com/ventupecas'),
     linkedin: () => open('https://www.linkedin.com/in/ventura-perez/'),
     'sudo hire ventura': (say) => {
       say(p().sudo, 'ok', true);

@@ -276,7 +276,7 @@
       code: '// A piece dropped close enough snaps into place\nconst dx = (p.ux - p.c) * geo.pw, dy = (p.uy - p.r) * geo.ph;\nif (Math.hypot(dx, dy) <= CFG.snapTolerance * geo.s) lockPiece(p);\nelse { clampPiece(p); position(p); }',
     }),
     email: (el) => ({ file: 'index.html', lang: 'html', code: `<a href="${el.getAttribute('href')}">${el.textContent.trim()}</a>` }),
-    github: () => ({ file: 'terminal', lang: 'sh', code: '$ git clone https://github.com/vperez-stars/Portfolio-Site.git' }),
+    github: () => ({ file: 'terminal', lang: 'sh', code: '$ git clone https://github.com/ventupecas/Portfolio-Site.git' }),
     linkedin: (el) => ({ file: 'index.html', lang: 'js', code: `window.open('${el.getAttribute('href')}', '_blank', 'noopener');` }),
     rebuild: () => ({ file: 'build.js', lang: 'js', code: 'build(); // types this page\'s code again, one line at a time' }),
     case: (el) => ({ file: 'index.html', lang: 'html', code: `<a href="${el.getAttribute('href')}">${el.textContent.trim()}</a>` }),
