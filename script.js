@@ -23,6 +23,7 @@ const STRINGS = {
     'hero.lead': 'Empecé a programar porque quería construir mis propias herramientas y diseñarlas como a mí me gustaría usarlas. Hoy creo aplicaciones web que ayudan a la gente a desplazarse con más seguridad, a organizar su trabajo y a recordar lo que importa.',
     'hero.cta1': 'Ver mis proyectos',
     'hero.cta2': 'Hablemos',
+    'hero.photoAlt': 'Ventura Perez, sonriendo con los brazos cruzados delante de una pared de ladrillo amarillo',
 
     'about.title': 'Sobre mí',
     'about.p0': 'Nací en Madrid. Con nueve años me mudé a Nueva Jersey sin saber ni una palabra de inglés; después vinieron Miami y ahora Milwaukee. Cada mudanza me enseñó a adaptarme rápido y a aprender de todos los que me rodean.',

@@ -100,6 +100,7 @@
         [`  <h1>${text('.hero h1')}</h1>`, show('.hero h1')],
         [`  <p class="lead">${text('.lead', 40)}</p>`, show('.lead')],
         [`  <a class="button" href="#projects">${text('.hero .button')}</a>`, show('.hero-actions')],
+        ['  <img class="hero-photo" src="images/ventura.jpg">', show('.hero-photo')],
         ['</header>'],
       ] },
       { file: 'styles.css', lang: 'css', lines: [
