@@ -92,7 +92,7 @@
       { file: 'index.html', lang: 'html', lines: [
         ['<nav class="navbar">'],
         ['  <a class="nav-logo" href="#top">VP Ventura Perez</a>', show('.nav-logo')],
-        [`  <a href="#about">${nav[0]}</a> <a href="#projects">${nav[1]}</a> …`, show('.nav-links')],
+        [`  <a href="#projects">${nav[0]}</a> <a href="#about">${nav[1]}</a> …`, show('.nav-links')],
         ['  <button data-lang="es">ES</button>', show('.nav-tools')],
         ['</nav>'],
         ['<header class="hero">'],

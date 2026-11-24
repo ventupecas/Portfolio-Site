@@ -62,8 +62,8 @@
 
     <div class="nav-right">
       <div class="nav-links">
-        <a href="#about" data-snippet="anchor" data-i18n="nav.about">About</a>
         <a href="#projects" data-snippet="anchor" data-i18n="nav.projects">Projects</a>
+        <a href="#about" data-snippet="anchor" data-i18n="nav.about">About</a>
         <a href="#experience" data-snippet="anchor" data-i18n="nav.experience">Experience</a>
         <a href="#contact" data-snippet="anchor" data-i18n="nav.contact">Contact</a>
       </div>
@@ -119,17 +119,98 @@
       </ul>
     </section>
 
+    <!-- ===================== PROJECTS ===================== -->
+    <section id="projects" class="section">
+      <h2 data-i18n="projects.title">Projects</h2>
+      <p class="section-intro" data-i18n="projects.intro">Things I've built. Each one has a demo you can try.</p>
+
+      <div class="project-grid">
+
+        <article class="project-card">
+          <div class="project-media" data-video="videos/safemaps.webm">
+            <a href="safemaps/" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">
+              <img src="images/safemaps.webp" width="1440" height="900" loading="lazy" alt="" />
+            </a>
+            <button type="button" class="try-here" data-mini="safemaps" data-i18n="try.here">▶ Try it here</button>
+          </div>
+          <div class="project-body">
+            <h3>SafeMaps</h3>
+            <ul class="tags">
+              <li>JavaScript</li><li>Leaflet</li><li>MapLibre</li><li>Three.js</li><li>OpenStreetMap</li>
+            </ul>
+            <p data-i18n="safemaps.desc">Most map apps pick the fastest route. SafeMaps picks the safest one first, then the one that saves fuel, then the quickest, for car, bike, walking and bus trips around Milwaukee.</p>
+            <p class="highlight" data-i18n="safemaps.highlight">It plans routes with its own engine over OpenStreetMap roads and public crash data. On one sample trip, the safer route scores 100 for safety against the standard route's 26, for about 7 more minutes.</p>
+            <p class="note" data-i18n="safemaps.note">Demo with recorded routes.</p>
+            <div class="project-links">
+              <a href="safemaps/" target="_blank" rel="noopener noreferrer" class="project-link" data-snippet="safemaps" data-i18n="link.demo">Try the demo</a>
+              <a href="work/safemaps.html" class="project-link" data-snippet="case" data-i18n="link.case">Read the case study</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="project-card">
+          <div class="project-media" data-video="videos/onetouch.webm">
+            <a href="onetouch/" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">
+              <img src="images/onetouch.webp" width="1440" height="900" loading="lazy" alt="" />
+            </a>
+            <button type="button" class="try-here" data-mini="onetouch" data-i18n="try.ask">▶ Ask it something</button>
+          </div>
+          <div class="project-body">
+            <h3>OneTouch</h3>
+            <ul class="tags">
+              <li>JavaScript</li><li>Node.js</li><li>Claude API</li><li>PostgreSQL</li><li>Docker</li><li>Three.js</li>
+            </ul>
+            <p data-i18n="onetouch.desc">An IT ticket workspace: ask questions about tickets in plain English, build your own dashboards, and see which work needs attention first.</p>
+            <p class="highlight" data-i18n="onetouch.highlight">It maps its own architecture in 2D and 3D, so you can follow a real request through the whole system, step by step.</p>
+            <p class="note" data-i18n="onetouch.note">Demo with generated data.</p>
+            <div class="project-links">
+              <a href="onetouch/" target="_blank" rel="noopener noreferrer" class="project-link" data-snippet="onetouch" data-i18n="link.demo">Try the demo</a>
+              <a href="work/onetouch.html" class="project-link" data-snippet="case" data-i18n="link.case">Read the case study</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="project-card">
+          <div class="project-media guernica-art">
+            <a class="art-link" href="https://ventupecas.github.io/Guernica/" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true"></a>
+            <span class="pieces">
+              <i></i><i></i><i></i><i></i><i></i><button type="button" class="missing" data-i18n-label="guernica.piece" aria-label="Put the last piece in place"></button>
+              <i></i><i></i><i></i><i></i><i></i><i></i>
+              <i></i><i></i><i></i><i></i><i></i><i></i>
+            </span>
+            <span class="guernica-label" aria-hidden="true">Guernica<small>26 · IV · 1937</small></span>
+            <p class="guernica-hint" data-i18n="guernica.hint">Drag the last piece into place</p>
+            <div class="guernica-verse" aria-live="polite"></div>
+          </div>
+          <div class="project-body">
+            <h3 data-i18n="guernica.title">In Memory of Guernica</h3>
+            <ul class="tags">
+              <li>JavaScript</li><li>Canvas</li><li data-i18n="tags.bilingual">Bilingual ES/EN</li>
+            </ul>
+            <p data-i18n-html="guernica.desc">An 18-piece jigsaw of Picasso's <i>Guernica</i>. Every piece you place unlocks a chapter of the Spanish Civil War and its poets (Lorca, Alberti, Cernuda, Guillén and Aleixandre) in Spanish and English.</p>
+            <p class="highlight" data-i18n="guernica.why">Why I made it: the bombing of Guernica shows what violence costs, and why peaceful, non-violent action is worth remembering. I wanted people to rebuild that memory with their own hands, one piece at a time.</p>
+            <p class="note" data-i18n-html="guernica.note">Built for a tech expo. Picasso painted <i>Guernica</i> for one too: the 1937 Paris International Exposition, devoted to arts and technology.</p>
+            <div class="project-links">
+              <a href="https://ventupecas.github.io/Guernica/" target="_blank" rel="noopener noreferrer" class="project-link" data-snippet="guernica" data-i18n="link.puzzle">Play the puzzle</a>
+              <a href="work/guernica.html" class="project-link" data-snippet="case" data-i18n="link.case">Read the case study</a>
+            </div>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
     <!-- ===================== ABOUT ===================== -->
     <section id="about" class="section">
       <h2 data-i18n="about.title">About me</h2>
 
       <div class="about-grid">
         <div class="about-text">
-          <p data-i18n="about.p0">I was born and raised in Madrid, Spain, and moved to West Orange, New Jersey, right before my tenth birthday without knowing a word of English. Miami and now Milwaukee came next, and each move taught me to adapt quickly to an entirely new place. I'm curious by nature, a bit of a sponge: I learn from everything around me, and most of all from the people I work with.</p>
-          <p data-i18n="about.p1">I've always wanted to know how the tools I use actually work, and to make my own when the right one doesn't exist. That's what pulled me into programming. I like the whole process: deciding what a tool should do, designing how it should feel, and building it until it does.</p>
-          <p data-i18n="about.p2">Before tech, I worked in sales. At Park Business Capital in Miami, I went from opening cold leads to closing deals within my first three months, selling at triple the industry average. I also improved the company's sales script, taught veteran colleagues new technology, and trained new hires in sales. Before that, at Domino's in Miami Beach, I planned delivery routes and timed the ovens to keep orders on schedule. (Yes, I was planning routes long before SafeMaps.)</p>
-          <p data-i18n="about.p3">Today I'm a business analyst and QA in i.c.stars, a technology and leadership program in Milwaukee. I build web apps for real client projects, then present them and lead the Q&amp;A on the technical approach and the business value.</p>
-          <p data-i18n="about.p4">I work in English and Spanish, and I build that way too: SafeMaps and my Guernica puzzle both run in both languages.</p>
+          <p data-i18n="about.p0">Born in Madrid. At nine, I moved to New Jersey without a word of English, then on to Miami and now Milwaukee. Every move taught me to adapt fast and to learn from everyone around me.</p>
+          <p data-i18n="about.p1">I got into programming because I wanted to know how my tools work, and to build my own when the right one didn’t exist. I like the whole arc: deciding what a tool should do, designing how it feels, and building it until it does.</p>
+          <p data-i18n="about.p2">Before tech, I sold at triple the industry average at Park Business Capital. Before that, I planned delivery routes at Domino’s. (Yes, I was routing long before SafeMaps.)</p>
+          <p data-i18n="about.p3">Today I’m a business analyst and QA at i.c.stars, a tech and leadership program in Milwaukee: I build web apps for real clients, then present them and lead the Q&amp;A.</p>
+          <p data-i18n="about.p4">I work in English and Spanish, and so does what I build: SafeMaps and my Guernica puzzle run in both.</p>
 
           <h3 class="about-sub" data-i18n="about.people">How I work with people</h3>
           <p data-i18n="about.nvc">I believe in nonviolent communication: saying what I see and what I need without blame, and listening just as carefully for what the other person needs. Disagreement on a team is normal, and often useful, as long as it stays about the work and not the people.</p>
@@ -219,87 +300,6 @@
             <li data-i18n="skills.it">Learning Italian</li>
           </ul>
         </div>
-      </div>
-    </section>
-
-    <!-- ===================== PROJECTS ===================== -->
-    <section id="projects" class="section">
-      <h2 data-i18n="projects.title">Projects</h2>
-      <p class="section-intro" data-i18n="projects.intro">Things I've built. Each one has a demo you can try.</p>
-
-      <div class="project-grid">
-
-        <article class="project-card">
-          <div class="project-media" data-video="videos/safemaps.webm">
-            <a href="safemaps/" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">
-              <img src="images/safemaps.webp" width="1440" height="900" loading="lazy" alt="" />
-            </a>
-            <button type="button" class="try-here" data-mini="safemaps" data-i18n="try.here">▶ Try it here</button>
-          </div>
-          <div class="project-body">
-            <h3>SafeMaps</h3>
-            <ul class="tags">
-              <li>JavaScript</li><li>Leaflet</li><li>MapLibre</li><li>Three.js</li><li>OpenStreetMap</li>
-            </ul>
-            <p data-i18n="safemaps.desc">Most map apps pick the fastest route. SafeMaps picks the safest one first, then the one that saves fuel, then the quickest, for car, bike, walking and bus trips around Milwaukee.</p>
-            <p class="highlight" data-i18n="safemaps.highlight">It plans routes with its own engine over OpenStreetMap roads and public crash data. On one sample trip, the safer route scores 100 for safety against the standard route's 26, for about 7 more minutes.</p>
-            <p class="note" data-i18n="safemaps.note">Demo with recorded routes.</p>
-            <div class="project-links">
-              <a href="safemaps/" target="_blank" rel="noopener noreferrer" class="project-link" data-snippet="safemaps" data-i18n="link.demo">Try the demo</a>
-              <a href="work/safemaps.html" class="project-link" data-snippet="case" data-i18n="link.case">Read the case study</a>
-            </div>
-          </div>
-        </article>
-
-        <article class="project-card">
-          <div class="project-media" data-video="videos/onetouch.webm">
-            <a href="onetouch/" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">
-              <img src="images/onetouch.webp" width="1440" height="900" loading="lazy" alt="" />
-            </a>
-            <button type="button" class="try-here" data-mini="onetouch" data-i18n="try.ask">▶ Ask it something</button>
-          </div>
-          <div class="project-body">
-            <h3>OneTouch</h3>
-            <ul class="tags">
-              <li>JavaScript</li><li>Node.js</li><li>Claude API</li><li>PostgreSQL</li><li>Docker</li><li>Three.js</li>
-            </ul>
-            <p data-i18n="onetouch.desc">An IT ticket workspace: ask questions about tickets in plain English, build your own dashboards, and see which work needs attention first.</p>
-            <p class="highlight" data-i18n="onetouch.highlight">It maps its own architecture in 2D and 3D, so you can follow a real request through the whole system, step by step.</p>
-            <p class="note" data-i18n="onetouch.note">Demo with generated data.</p>
-            <div class="project-links">
-              <a href="onetouch/" target="_blank" rel="noopener noreferrer" class="project-link" data-snippet="onetouch" data-i18n="link.demo">Try the demo</a>
-              <a href="work/onetouch.html" class="project-link" data-snippet="case" data-i18n="link.case">Read the case study</a>
-            </div>
-          </div>
-        </article>
-
-        <article class="project-card">
-          <div class="project-media guernica-art">
-            <a class="art-link" href="https://ventupecas.github.io/Guernica/" target="_blank" rel="noopener noreferrer" tabindex="-1" aria-hidden="true"></a>
-            <span class="pieces">
-              <i></i><i></i><i></i><i></i><i></i><button type="button" class="missing" data-i18n-label="guernica.piece" aria-label="Put the last piece in place"></button>
-              <i></i><i></i><i></i><i></i><i></i><i></i>
-              <i></i><i></i><i></i><i></i><i></i><i></i>
-            </span>
-            <span class="guernica-label" aria-hidden="true">Guernica<small>26 · IV · 1937</small></span>
-            <p class="guernica-hint" data-i18n="guernica.hint">Drag the last piece into place</p>
-            <div class="guernica-verse" aria-live="polite"></div>
-          </div>
-          <div class="project-body">
-            <h3 data-i18n="guernica.title">In Memory of Guernica</h3>
-            <ul class="tags">
-              <li>JavaScript</li><li>Canvas</li><li data-i18n="tags.bilingual">Bilingual ES/EN</li>
-            </ul>
-            <p data-i18n-html="guernica.desc">An 18-piece jigsaw of Picasso's <i>Guernica</i>. Every piece you place unlocks a chapter of the Spanish Civil War and its poets (Lorca, Alberti, Cernuda, Guillén and Aleixandre) in Spanish and English.</p>
-            <p class="highlight" data-i18n="guernica.why">Why I made it: the bombing of Guernica shows what violence costs, and why peaceful, non-violent action is worth remembering. I wanted people to rebuild that memory with their own hands, one piece at a time.</p>
-            <p class="note" data-i18n-html="guernica.note">Built for a tech expo. Picasso painted <i>Guernica</i> for one too: the 1937 Paris International Exposition, devoted to arts and technology.</p>
-            <div class="project-links">
-              <a href="https://ventupecas.github.io/Guernica/" target="_blank" rel="noopener noreferrer" class="project-link" data-snippet="guernica" data-i18n="link.puzzle">Play the puzzle</a>
-              <a href="work/guernica.html" class="project-link" data-snippet="case" data-i18n="link.case">Read the case study</a>
-            </div>
-          </div>
-        </article>
-
       </div>
     </section>
 

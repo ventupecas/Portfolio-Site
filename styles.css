@@ -571,11 +571,14 @@ html.raw-nav .lang-toggle button[aria-pressed="true"] {
   background-color: #efefef; color: #000; border: 1px solid #767676; border-radius: 3px; font-weight: 400;
 }
 
-/* The editor panel that types the code */
+/* The editor panel that types the code. It sits in the bottom-right corner and, where the
+   screen is wide enough, narrows so its left edge stays clear of the hero's text column
+   (centered --max-width column, its side padding, then the 40rem-wide .lead). */
 .builder {
+  --hero-text-end: calc(max(0px, (100vw - var(--max-width)) / 2) + clamp(1rem, 4vw, 2rem) + 40rem);
   position: fixed; z-index: 60;
-  right: clamp(1rem, 3vw, 2rem); bottom: clamp(1rem, 3vw, 2rem);
-  width: min(31rem, calc(100vw - 2rem));
+  right: .75rem; bottom: .75rem;
+  width: min(calc(100vw - 1.5rem), clamp(22rem, calc(100vw - var(--hero-text-end) - 3rem), 31rem));
   background: var(--code-bg); color: var(--code-text);
   border: 1px solid var(--code-line); border-radius: 12px; overflow: hidden;
   box-shadow: 0 24px 60px rgba(10, 9, 30, .4);
